@@ -1,0 +1,263 @@
+{
+  "time": "2026-11-14 13:24:00",
+  "base": "http://127.0.0.1:18080/api",
+  "passed": 51,
+  "failed": 0,
+  "results": [
+    {
+      "item": "健康检查 /api/health 返回 UP",
+      "passed": true,
+      "detail": "HTTP 200 {'status': 'UP', 'db': 'UP', 'demoTime': '2026-11-14T10:15:00', 'revision': 62}"
+    },
+    {
+      "item": "元数据包含 2 所学校 / 4 个班 / 14 位教师 / 11 间教室",
+      "passed": true,
+      "detail": "schools=2 classes=4 teachers=14 rooms=11"
+    },
+    {
+      "item": "演示时钟可读取且含快捷时间点",
+      "passed": true,
+      "detail": "demoTime=2026-11-14T10:15:00"
+    },
+    {
+      "item": "POST /api/demo/reset 成功",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "item": "演示时间恢复到当天 10:15",
+      "passed": true,
+      "detail": "2026-11-14T10:15:00"
+    },
+    {
+      "item": "总览统计：2 校 / 14 教师 / 4 班 / 32 学生 / 24 节课",
+      "passed": true,
+      "detail": "{'schools': 2, 'teachers': 14, 'classes': 4, 'students': 32, 'courses': 8, 'classrooms': 11, 'sessionsToday': 24, 'changes': 3, 'currentLessons': 4}"
+    },
+    {
+      "item": "按姓名搜索到学生 陈一诺（无须进入菜单）",
+      "passed": true,
+      "detail": "共 1 条"
+    },
+    {
+      "item": "学生当前课程为 语文 / 张明远 / 10:00 / 明理楼 101",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 1, \"teacherName\": \"张明远\", \"classroomId\": 1, \"classroomName\": \"明理楼 101\", \"lessonDate\": \"2026-11-14\", \"startTime\": \"10:00\", \"endTime\": \"10:45\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"正在上课\"}"
+    },
+    {
+      "item": "学生下一节课为 物理 / 赵建国 / 11:00，信息直接可见",
+      "passed": true,
+      "detail": "{\"id\": 4, \"code\": \"LS-004\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 4, \"courseName\": \"物理\", \"subject\": \"物理\", \"teacherId\": 4, \"teacherName\": \"赵建国\", \"classroomId\": 4, \"classroomName\": \"实验楼 201 物理实验室\", \"lessonDate\": \"2026-11-14\", \"startTime\": \"11:00\", \"endTime\": \"11:45\", \"periodName\": \"第四节\", \"studentCount\": 8, \"status\": \"即将开始\"}"
+    },
+    {
+      "item": "按编号 STU-0001 搜索到同一学生",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "item": "按姓名搜索教师 张明远",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "item": "学校筛选生效（仅云岭实验学校对象）",
+      "passed": true,
+      "detail": "22 条"
+    },
+    {
+      "item": "07:30 上课前：无正在上课，下一节为 08:00 语文",
+      "passed": true,
+      "detail": "current=None next=08:00"
+    },
+    {
+      "item": "10:15 课中：当前为语文，下一节 11:00，总览 4 节课同时在进行",
+      "passed": true,
+      "detail": "current=语文 next=11:00 ongoing=4"
+    },
+    {
+      "item": "10:45 下课边界：第三节已结束、当前无课、下一节 11:00",
+      "passed": true,
+      "detail": "status=已结束 next=11:00"
+    },
+    {
+      "item": "17:00 全部课程结束后：当前/下一节均为空，总览无进行中课程（明确空状态数据）",
+      "passed": true,
+      "detail": "全局列表 32 行均为空"
+    },
+    {
+      "item": "跟随真实时间：演示时间随真实时钟推进",
+      "passed": true,
+      "detail": "2026-11-14T17:00:00 -> 2026-11-14T17:00:01"
+    },
+    {
+      "item": "同步到今天：演示时间回到当天 10:15",
+      "passed": true,
+      "detail": "2026-11-14T10:15:00"
+    },
+    {
+      "item": "同步到今天：全部授课安排日期为今天",
+      "passed": true,
+      "detail": "24 节"
+    },
+    {
+      "item": "预览：缺少原因被拒绝",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['REASON_REQUIRED'] msg="
+    },
+    {
+      "item": "提交：缺少原因被拒绝",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['REASON_REQUIRED'] msg=调课校验未通过"
+    },
+    {
+      "item": "失败后数据、变更日志、版本号均未改变：缺少原因被拒绝",
+      "passed": true,
+      "detail": "changes=3/3 revision=72/72"
+    },
+    {
+      "item": "预览：教师跨校被拒绝（云岭实验教师给星海一中上课）",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['TEACHER_SCHOOL_MISMATCH'] msg="
+    },
+    {
+      "item": "提交：教师跨校被拒绝（云岭实验教师给星海一中上课）",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['TEACHER_SCHOOL_MISMATCH'] msg=调课校验未通过"
+    },
+    {
+      "item": "失败后数据、变更日志、版本号均未改变：教师跨校被拒绝（云岭实验教师给星海一中上课）",
+      "passed": true,
+      "detail": "changes=3/3 revision=72/72"
+    },
+    {
+      "item": "预览：教师科目不符被拒绝（数学教师教语文）",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['TEACHER_SUBJECT_MISMATCH'] msg="
+    },
+    {
+      "item": "提交：教师科目不符被拒绝（数学教师教语文）",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['TEACHER_SUBJECT_MISMATCH'] msg=调课校验未通过"
+    },
+    {
+      "item": "失败后数据、变更日志、版本号均未改变：教师科目不符被拒绝（数学教师教语文）",
+      "passed": true,
+      "detail": "changes=3/3 revision=72/72"
+    },
+    {
+      "item": "预览：教师时间冲突被拒绝（吴嘉豪 10:00 已在初一（2）班）",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['TEACHER_CONFLICT'] msg="
+    },
+    {
+      "item": "提交：教师时间冲突被拒绝（吴嘉豪 10:00 已在初一（2）班）",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['TEACHER_CONFLICT'] msg=调课校验未通过"
+    },
+    {
+      "item": "失败后数据、变更日志、版本号均未改变：教师时间冲突被拒绝（吴嘉豪 10:00 已在初一（2）班）",
+      "passed": true,
+      "detail": "changes=3/3 revision=72/72"
+    },
+    {
+      "item": "预览：教室时间冲突被拒绝（明理楼 102 已被占用）",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['CLASSROOM_CONFLICT'] msg="
+    },
+    {
+      "item": "提交：教室时间冲突被拒绝（明理楼 102 已被占用）",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['CLASSROOM_CONFLICT'] msg=调课校验未通过"
+    },
+    {
+      "item": "失败后数据、变更日志、版本号均未改变：教室时间冲突被拒绝（明理楼 102 已被占用）",
+      "passed": true,
+      "detail": "changes=3/3 revision=72/72"
+    },
+    {
+      "item": "预览：班级时间冲突被拒绝（11:00 该班已有物理课）",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['CLASS_CONFLICT'] msg="
+    },
+    {
+      "item": "提交：班级时间冲突被拒绝（11:00 该班已有物理课）",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['CLASS_CONFLICT'] msg=调课校验未通过"
+    },
+    {
+      "item": "失败后数据、变更日志、版本号均未改变：班级时间冲突被拒绝（11:00 该班已有物理课）",
+      "passed": true,
+      "detail": "changes=3/3 revision=72/72"
+    },
+    {
+      "item": "提交前影响面板：校验通过、含差异与受影响人数",
+      "passed": true,
+      "detail": "diff=4 条, 受影响 8 人"
+    },
+    {
+      "item": "调课提交成功（HTTP 200）",
+      "passed": true,
+      "detail": "HTTP 200 "
+    },
+    {
+      "item": "返回的新课表：陈思琪 / 多功能报告厅 / 15:30-16:15",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-14\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}"
+    },
+    {
+      "item": "同一事务生成变更记录（含原因、前后差异、影响）",
+      "passed": true,
+      "detail": "changeId=23 diff=4"
+    },
+    {
+      "item": "数据版本号递增（供其他视角短轮询感知）",
+      "passed": true,
+      "detail": "72 -> 73"
+    },
+    {
+      "item": "学生详情 读取到同一份新授课安排",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-14\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}"
+    },
+    {
+      "item": "班级详情 读取到同一份新授课安排",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-14\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}"
+    },
+    {
+      "item": "原教师课表不再包含被调走的 LS-003",
+      "passed": true,
+      "detail": "匹配=False"
+    },
+    {
+      "item": "新教师详情 读取到同一份新授课安排",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-14\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}"
+    },
+    {
+      "item": "课表列表 读取到同一份新授课安排",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-14\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}"
+    },
+    {
+      "item": "总览今日课程 读取到同一份新授课安排",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-14\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}"
+    },
+    {
+      "item": "总览最近变更包含本次调课",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "item": "变更记录列表可查看修改前后、原因、时间、受影响对象",
+      "passed": true,
+      "detail": "id=23"
+    },
+    {
+      "item": "变更详情可查看完整 diff 与影响面板",
+      "passed": true,
+      "detail": "diff=4"
+    }
+  ]
+}

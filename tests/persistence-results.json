@@ -1,0 +1,28 @@
+{
+  "time": "2026-11-14 13:24:19",
+  "base": "http://127.0.0.1:18080/api",
+  "passed": 4,
+  "failed": 0,
+  "results": [
+    {
+      "item": "重启后仍可访问接口",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "item": "重启后调课结果保留（教师/教室/时间）",
+      "passed": true,
+      "detail": "teacher=5 room=6 15:30-16:15"
+    },
+    {
+      "item": "重启后调课变更记录保留",
+      "passed": true,
+      "detail": "查找原因：张明远老师参加区级教研，改由陈思琪代课并调至第七节、多功能报告厅"
+    },
+    {
+      "item": "重启后数据版本号不回退",
+      "passed": true,
+      "detail": "当前 revision=73, 重启前=73"
+    }
+  ]
+}

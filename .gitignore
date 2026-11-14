@@ -1,0 +1,30 @@
+# 依赖与构建产物（约 175MB，禁止入库）
+node_modules/
+frontend/node_modules/
+tests/node_modules/
+frontend/dist/
+backend/target/
+*.jar
+*.class
+
+# 本地环境与凭证
+.env
+.env.local
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# 测试运行产生的临时状态
+tests/.persistence-state.json
+
+# 编辑器 / 操作系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# 数据库本地导出
+pgdata/
+*.dump

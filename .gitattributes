@@ -1,0 +1,8 @@
+# 保证脚本与 SQL 在任何平台检出后都是 LF，避免 Windows CRLF 导致容器启动失败
+* text=auto
+*.sh text eol=lf
+*.sql text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.png binary
+*.jpg binary

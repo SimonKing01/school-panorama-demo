@@ -1,0 +1,70 @@
+name: school-panorama
+
+# 独立 Compose 项目：已有服务占用 5432 / 8080 / 5173 / 8083，
+# 本项目改用 55432（数据库）、18080（后端 API）、5180（前端页面）。
+services:
+  db:
+    image: postgres:17
+    container_name: school-panorama-db
+    environment:
+      POSTGRES_DB: schooldemo
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:-demo123456}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d schooldemo"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: school-panorama-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/schooldemo
+      SPRING_DATASOURCE_USERNAME: demo
+      SPRING_DATASOURCE_PASSWORD: ${DEMO_DB_PASSWORD:-demo123456}
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Shanghai"
+    ports:
+      - "127.0.0.1:18080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: school-panorama-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "5180:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  dbdata:
+    name: school-panorama_dbdata
