@@ -154,28 +154,32 @@ objectTypes:
     dynamicResolvers: [currentLesson, nextLesson]
     sourceMappingRef: school-source.yaml#lessonSession
 
-  # ── 教室类型：本轮预留，批次④ 通过「解除注释」接入（Q7 必做）──
-  # 批次④ 只解除本文件、relation-types.yaml、school-source.yaml 的注释，
-  # 通用内核 .java 与通用前端零改动（验收四）。
-  # - id: classroom
-  #   displayName: 教室
-  #   description: 原业务 classrooms 表（已存在），后接入证明内核通用性
-  #   identity:
-  #     sourceId: school-panorama
-  #     sourceTable: classrooms
-  #     sourcePk: id
-  #     globalIdRule: "gid:{sourceId}:{objectType}:{sourcePk}"
-  #   titleTemplate: "{name}"
-  #   listFields: [code, name, building, capacity, roomType, schoolName]
-  #   searchableFields: [code, name]
-  #   filterableFields: [schoolId, roomType]
-  #   attributes:
-  #     - { name: code,       type: string, displayName: 编号, required: true, unique: true }
-  #     - { name: name,       type: string, displayName: 名称, required: true }
-  #     - { name: building,   type: string, displayName: 楼栋 }
-  #     - { name: capacity,   type: int,    displayName: 容量 }
-  #     - { name: roomType,   type: string, displayName: 类型 }
-  #     - { name: schoolName, type: string, displayName: 所属学校, from: "school_id.name" }
-  #   derivedProperties: []
-  #   dynamicResolvers: []
-  #   sourceMappingRef: school-source.yaml#classroom
+  # ── 教室类型（批次④ 接入）：仅靠本定义 + 关系定义 + 来源映射即可上线，
+  # core/repository/controller/common/config 的 .java 与 ontology-web 的 src 全部零改动（验收四）。
+  # 属性列与 db/init/01_schema.sql 的 classrooms 表一一对应（code/name/school_id/building/capacity/room_type）。
+  - id: classroom
+    displayName: 教室
+    description: 原业务 classrooms 表（已有表，此前仅以 lessonSession.classroomName 降级展示，批次④ 升为正式对象）
+    identity:
+      sourceId: school-panorama
+      sourceTable: classrooms
+      sourcePk: id
+      globalIdRule: "gid:{sourceId}:{objectType}:{sourcePk}"
+    titleTemplate: "{name}"
+    listFields: [code, name, building, capacity, roomType, schoolName]
+    searchableFields: [code, name]
+    filterableFields: [roomType, building]
+    attributes:
+      - { name: code,       type: string, displayName: 编号,     required: true, unique: true }
+      - { name: name,       type: string, displayName: 名称,     required: true }
+      - { name: building,   type: string, displayName: 楼栋 }
+      - { name: capacity,   type: int,    displayName: 容量 }
+      - { name: roomType,   type: string, displayName: 教室类型 }
+      - { name: schoolName, type: string, displayName: 所属学校, from: "school_id.name" }
+    derivedProperties:
+      # 两个派生属性都由只读查询算出并随投影落库：只依赖 classrooms/lesson_sessions 的静态关联，
+      # 不含「今天」这类可变时间语义（否则重建会算出与首次导入不一致的值，违反两类时间分离）。
+      - { name: sessionCount, type: int, displayName: 累计排课数, provider: classroomUsageProvider }
+      - { name: usedPeriods,  type: int, displayName: 占用节次数, provider: classroomUsageProvider }
+    dynamicResolvers: []
+    sourceMappingRef: school-source.yaml#classroom

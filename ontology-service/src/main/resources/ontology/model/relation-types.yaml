@@ -139,36 +139,38 @@ relationTypes:
       targetTable: teachers
     sourceMappingRef: school-source.yaml#student
 
-  # ── 教室关系：批次④ 与 classroom 对象定义一并解除注释 ──
+  # ── 教室关系（批次④ 接入）──
   # 批次①②③ 采用降级配置：教室名称仅存于 lessonSession.attributes.classroomName，
-  # 不建教室对象、不建教室关系（详见架构 §2.4 / §11-I）。
-  # - id: session_in_classroom
-  #   displayName: 授课安排-教室
-  #   fromType: lessonSession
-  #   toType: classroom
-  #   forwardName: 上课教室
-  #   reverseName: 教室使用安排
-  #   direction: OUT
-  #   cardinality: "N:1"
-  #   businessEffectiveTime: true
-  #   generation:
-  #     kind: FOREIGN_KEY
-  #     sourceTable: lesson_sessions
-  #     fkColumn: classroom_id
-  #     targetTable: classrooms
-  #   sourceMappingRef: school-source.yaml#lessonSession
-  # - id: classroom_in_school
-  #   displayName: 教室所属学校
-  #   fromType: classroom
-  #   toType: school
-  #   forwardName: 所属学校
-  #   reverseName: 校内教室
-  #   direction: OUT
-  #   cardinality: "N:1"
-  #   businessEffectiveTime: false
-  #   generation:
-  #     kind: FOREIGN_KEY
-  #     sourceTable: classrooms
-  #     fkColumn: school_id
-  #     targetTable: schools
-  #   sourceMappingRef: school-source.yaml#classroom
+  # 不建教室对象、不建教室关系（详见架构 §2.4 / §11-I）；批次④ 两者同时补齐：
+  # 关系落地后「教室 ↔ 授课安排」两侧可查，且保留 lessonSession.classroomName 便于列表直接展示。
+  - id: session_in_classroom
+    displayName: 授课安排-教室
+    fromType: lessonSession
+    toType: classroom
+    forwardName: 上课教室
+    reverseName: 教室使用安排
+    direction: OUT
+    cardinality: "N:1"
+    businessEffectiveTime: true
+    generation:
+      kind: FOREIGN_KEY
+      sourceTable: lesson_sessions
+      fkColumn: classroom_id
+      targetTable: classrooms
+      validFromColumns: [lesson_date, start_time]
+    sourceMappingRef: school-source.yaml#lessonSession
+  - id: classroom_in_school
+    displayName: 教室所属学校
+    fromType: classroom
+    toType: school
+    forwardName: 所属学校
+    reverseName: 校内教室
+    direction: OUT
+    cardinality: "N:1"
+    businessEffectiveTime: false
+    generation:
+      kind: FOREIGN_KEY
+      sourceTable: classrooms
+      fkColumn: school_id
+      targetTable: schools
+    sourceMappingRef: school-source.yaml#classroom

@@ -128,20 +128,33 @@ objectMappings:
       - { relationType: session_of_class,  fk: class_id,  targetObjectType: class,  validFromColumns: [lesson_date, start_time] }
       - { relationType: session_of_course, fk: course_id, targetObjectType: course, validFromColumns: [lesson_date, start_time] }
       - { relationType: session_taught_by, fk: teacher_id,targetObjectType: teacher,validFromColumns: [lesson_date, start_time] }
-      # 批次④ 解除：{ relationType: session_in_classroom, fk: classroom_id, targetObjectType: classroom, validFromColumns: [...] }
+      # 批次④ 接入教室关系：教室由「名称串」升级为可跳转对象，原 classroomName 属性保留用于列表直显。
+      - { relationType: session_in_classroom, fk: classroom_id, targetObjectType: classroom, validFromColumns: [lesson_date, start_time] }
     joinRelationRules: []
     derivedProperties:
       - { name: studentCount, provider: classStudentCountProvider, inputs: [class_id] }
       - { name: status,       resolver: lessonStatusResolver,      inputs: [lessonDate, startTime, endTime, queryTime] }
 
-  # 批次④ 解除：classroom 对象映射 + 3 条教室关系（见架构 §2.5、§10.3）。
-  # classroom:
-  #   sourceTable: classrooms
-  #   pk: id
-  #   fieldMappings: [ ... code/name/building/capacity/room_type/schoolName ... ]
-  #   relationRules: [ ... classroom_in_school / class_home_room / session_in_classroom 反向展示 ... ]
-  #   joinRelationRules: []
-  #   derivedProperties: []
+  # 批次④ 接入：教室对象映射（对应 db/init/01_schema.sql 的 classrooms 表）。
+  # 只需本段 YAML + 上方关系定义 + 下方 providers 注册项，内核与前端零改动。
+  classroom:
+    sourceTable: classrooms
+    pk: id
+    fieldMappings:
+      - { target: code,       source: code }
+      - { target: name,       source: name }
+      - { target: building,   source: building }
+      - { target: capacity,   source: capacity }
+      - { target: roomType,   source: room_type }
+      - { target: schoolName, source: school_id, transform: LOOKUP_NAME, lookup: { table: schools, nameColumn: name } }
+    stableId: { rule: "gid:{sourceId}:{objectType}:{sourcePk}" }
+    relationRules:
+      - { relationType: classroom_in_school, fk: school_id, targetObjectType: school }
+    joinRelationRules: []
+    derivedProperties:
+      # 只读查询 lesson_sessions：按 classroom_id 统计排课条数与占用节次（不含可变时间语义，重建可复现）。
+      - { name: sessionCount, provider: classroomUsageProvider, inputs: [id] }
+      - { name: usedPeriods,  provider: classroomUsageProvider, inputs: [id] }
 
 # Java Provider / Resolver 注册清单（策略表）：内核按 key 从 SpiRegistry 取实现，
 # 不出现按业务类型的 switch/if；同一实现可用多个 key 注册（见 SchoolLessonResolver 别名）。
@@ -150,6 +163,7 @@ providers:
   - { key: classLookupProvider,       impl: com.school.ontology.adapter.school.provider.ClassLookupProvider }
   - { key: teacherClassProvider,      impl: com.school.ontology.adapter.school.provider.TeacherClassProvider }
   - { key: schoolCountProvider,       impl: com.school.ontology.adapter.school.provider.SchoolCountProvider }
+  - { key: classroomUsageProvider,    impl: com.school.ontology.adapter.school.provider.ClassroomUsageProvider }
 resolvers:
   - { key: currentLesson,       impl: com.school.ontology.adapter.school.resolver.SchoolLessonResolver }
   - { key: nextLesson,          impl: com.school.ontology.adapter.school.resolver.SchoolLessonResolver }
