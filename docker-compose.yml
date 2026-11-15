@@ -38,6 +38,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DEMO_DB_PASSWORD:-demo123456}
       TZ: Asia/Shanghai
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Shanghai"
+      # 仅作为异步投递目标地址字符串；业务服务不 depends_on 本体服务，底座停机不影响业务提交
+      ONTOLOGY_TARGET_URL: http://ontology-service:8080
     ports:
       - "127.0.0.1:18080:8080"
     healthcheck:
@@ -65,6 +67,76 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  # ===== 本体数据底座：独立服务 + 独立数据库，不改动上面 3 个业务服务 =====
+  ontology-db:
+    image: postgres:17
+    container_name: school-panorama-ontology-db
+    environment:
+      POSTGRES_DB: ontologydb
+      POSTGRES_USER: onto
+      POSTGRES_PASSWORD: ${ONTOLOGY_DB_PASSWORD:-onto123456}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:55433:5432"
+    volumes:
+      - ontologydata:/var/lib/postgresql/data
+      - ./db/ontology:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onto -d ontologydb"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  ontology-service:
+    build:
+      context: ./ontology-service
+    container_name: school-panorama-ontology-service
+    depends_on:
+      db:
+        condition: service_healthy
+      ontology-db:
+        condition: service_healthy
+    environment:
+      ONTOLOGY_DB_URL: jdbc:postgresql://ontology-db:5432/ontologydb
+      ONTOLOGY_DB_USER: onto
+      ONTOLOGY_DB_PASSWORD: ${ONTOLOGY_DB_PASSWORD:-onto123456}
+      SOURCE_DB_URL: jdbc:postgresql://db:5432/schooldemo
+      SOURCE_DB_USER: demo
+      SOURCE_DB_PASSWORD: ${DEMO_DB_PASSWORD:-demo123456}
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Shanghai"
+    ports:
+      - "127.0.0.1:18090:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 20s
+    restart: unless-stopped
+
+  ontology-web:
+    build:
+      context: ./ontology-web
+    container_name: school-panorama-ontology-web
+    depends_on:
+      ontology-service:
+        condition: service_healthy
+    ports:
+      - "5181:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
 volumes:
   dbdata:
     name: school-panorama_dbdata
+  ontologydata:
+    name: school-panorama_ontologydata

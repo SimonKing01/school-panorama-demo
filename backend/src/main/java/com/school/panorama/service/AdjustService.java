@@ -11,6 +11,7 @@ import com.school.panorama.entity.Teacher;
 import com.school.panorama.mapper.ChangeRecordMapper;
 import com.school.panorama.mapper.LessonSessionMapper;
 import com.school.panorama.mapper.SystemRevisionMapper;
+import com.school.panorama.outbox.OutboxEventWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,8 @@ public class AdjustService {
     @Autowired private DemoClockService demoClock;
     @Autowired private ChangeService changeService;
     @Autowired private ObjectMapper objectMapper;
+    // 批次② 增量：业务更新与事件写入同一本地事务；底座不可达不影响本次提交。
+    @Autowired private OutboxEventWriter outboxEventWriter;
 
     public Map<String, Object> preview(long id, AdjustBody body) {
         return validate(id, body).view;
@@ -56,28 +59,54 @@ public class AdjustService {
             fail.put("code", "VALIDATION_FAILED");
             throw new ApiException(400, "VALIDATION_FAILED", "调课校验未通过", e.conflicts, fail);
         }
+        applyValidated(id, e);
+        long changeId = insertChangeRecord(id, body == null ? null : body.reason, e);
+        systemRevisionMapper.bump();
+        // 批次② 增量：事件与业务更新同事务；revision 取 bump 后的真实值，
+        // businessTime 取演示业务时间（可回拨），occurred_at 由数据库 now() 生成。
+        long newRevision = systemRevisionMapper.revision();
+        Map<String, Object> payload = Resp.map(
+                "sourceTable", "lesson_sessions", "sourcePk", String.valueOf(id),
+                "sourceCode", e.lesson.code,
+                "before", e.before, "after", e.after, "diff", e.diff, "impact", e.impact,
+                "reason", body == null ? null : body.reason, "operator", "演示管理员");
+        outboxEventWriter.append("ADJUST", "LESSON_SESSION", String.valueOf(id), null,
+                newRevision, demoClock.now(), payload);
+
+        LessonView newLesson = business.allLessons().stream()
+                .filter(l -> l.id == id).findFirst().orElse(e.lesson);
+        Map<String, Object> change = changeService.detail(changeId);
+        return Resp.map("demoTime", demoClock.demoTimeString(),
+                "lesson", newLesson, "change", change,
+                "impact", e.impact, "diff", e.diff,
+                "revision", newRevision);
+    }
+
+    /**
+     * 批次② 暴露给批量接口复用的写入原语：只更新课表并递增 version，
+     * 不写变更记录、不 bump revision、不发事件。校验规则完全沿用 validate，未改动。
+     * 在批量事务内逐条调用，后续 validate 能看到本事务内已 apply 的改动，避免批次内部互相冲突。
+     */
+    public void applyValidated(long id, Eval e) {
         lessonSessionMapper.applyAdjust(Resp.map("id", id,
                 "teacherId", e.teacherId, "classroomId", e.classroomId,
                 "lessonDate", e.lessonDate, "startTime", e.startTime, "endTime", e.endTime));
+    }
+
+    /** 批次② 暴露给批量接口复用的写入原语：插入一条变更记录并返回主键（事务内可见）。 */
+    public long insertChangeRecord(long id, String reason, Eval e) {
         changeRecordMapper.insertChange(Resp.map(
                 "sessionId", id, "sessionCode", e.lesson.code, "schoolId", e.lesson.schoolId,
-                "changeType", "调课", "reason", body.reason, "operator", "演示管理员",
+                "changeType", "调课", "reason", reason, "operator", "演示管理员",
                 "occurredAt", demoClock.demoTimeString(),
                 "beforeJson", json(e.before), "afterJson", json(e.after),
                 "diffJson", json(e.diff), "affectedJson", json(e.impact),
                 "affectedStudentCount", e.impact.get("studentCount")));
-        systemRevisionMapper.bump();
-
-        LessonView newLesson = business.allLessons().stream()
-                .filter(l -> l.id == id).findFirst().orElse(e.lesson);
-        Map<String, Object> change = changeService.detail(changeRecordMapper.maxId());
-        return Resp.map("demoTime", demoClock.demoTimeString(),
-                "lesson", newLesson, "change", change,
-                "impact", e.impact, "diff", e.diff,
-                "revision", systemRevisionMapper.revision());
+        return changeRecordMapper.maxId();
     }
 
-    private Eval validate(long id, AdjustBody body) {
+    /** 批次② 暴露给批量接口复用；8 条校验规则与顺序逐字未改。 */
+    public Eval validate(long id, AdjustBody body) {
         AdjustBody b = body == null ? new AdjustBody() : body;
         List<LessonView> lessons = business.allLessons();
         LessonView lesson = lessons.stream().filter(l -> l.id == id).findFirst()
@@ -231,7 +260,8 @@ public class AdjustService {
         }
     }
 
-    private static class Eval {
+    /** 批次② 改为 public，供 BatchAdjustService 复用同一套校验结果（before/after/diff/impact/view）。 */
+    public static class Eval {
         LessonView lesson;
         Long teacherId;
         Long classroomId;

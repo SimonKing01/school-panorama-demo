@@ -1,0 +1,156 @@
+# 来源映射定义（B4）：一张来源表 → 一种对象；字段映射 / 简单转换 / 稳定 ID /
+# 外键关系 / 联表派生 / Java Provider 与 Resolver 注册清单。
+# 内核只按 key 查策略表，不按业务类型分支；新增对象类型只需改本文件 + 模型定义。
+version: 1
+dataSource:
+  id: school-panorama
+  displayName: 学校全景演示业务库
+  type: JDBC_POSTGRESQL
+  jdbcRef: source-db                 # 只读数据源（application.yml 的 source-db.*）
+  watermark:
+    kind: SYSTEM_REVISION           # 快照水位：业务库 system_revision.revision
+    table: system_revision
+    column: revision
+  healthCheckSql: "SELECT 1"
+  businessTimeSql: "SELECT demo_at, running, anchor_real_at FROM demo_state WHERE id = 1"
+
+objectMappings:
+  school:
+    sourceTable: schools
+    pk: id
+    fieldMappings:
+      - { target: code,    source: code }
+      - { target: name,    source: name }
+      - { target: address, source: address }
+      - { target: phone,   source: phone }
+      - { target: slogan,  source: slogan }
+    stableId: { rule: "gid:{sourceId}:{objectType}:{sourcePk}" }
+    relationRules: []
+    joinRelationRules: []
+    derivedProperties:
+      - { name: classCount,   provider: schoolCountProvider,       inputs: [id] }
+      - { name: teacherCount, provider: schoolCountProvider,       inputs: [id] }
+
+  class:
+    sourceTable: classes
+    pk: id
+    fieldMappings:
+      - { target: code,            source: code }
+      - { target: name,            source: name }
+      - { target: grade,           source: grade }
+      - { target: schoolName,      source: school_id,       transform: LOOKUP_NAME,       lookup: { table: schools,  nameColumn: name } }
+      - { target: headTeacherName, source: head_teacher_id, transform: LOOKUP_NAME,       lookup: { table: teachers, nameColumn: name } }
+    stableId: { rule: "gid:{sourceId}:{objectType}:{sourcePk}" }
+    relationRules:
+      - { relationType: class_in_school,    fk: school_id,        targetObjectType: school }
+      - { relationType: class_head_teacher, fk: head_teacher_id,  targetObjectType: teacher }
+    joinRelationRules: []
+    derivedProperties:
+      - { name: studentCount, provider: classStudentCountProvider, inputs: [id] }
+
+  student:
+    sourceTable: students
+    pk: id
+    fieldMappings:
+      - { target: code,          source: code }
+      - { target: name,          source: name }
+      - { target: gender,        source: gender }
+      - { target: studentNo,     source: student_no }
+      - { target: guardianPhone, source: guardian_phone }
+      - { target: enrollDate,    source: enroll_date, transform: DATE_yyyyMMdd }
+      - { target: className,     source: class_id,    transform: LOOKUP_NAME,         lookup: { table: classes, nameColumn: name } }
+      - { target: schoolName,    source: class_id,    transform: NESTED_LOOKUP_NAME,
+          lookup: { table: classes, joinColumn: school_id, nameTable: schools, nameColumn: name } }
+    stableId: { rule: "gid:{sourceId}:{objectType}:{sourcePk}" }
+    relationRules:
+      - { relationType: student_in_class, fk: class_id, targetObjectType: class }
+    joinRelationRules:
+      - relationType: student_taught_by
+        rule: "class_id → lesson_sessions(class_id).teacher_id（按规则联表派生，非外键直连）"
+        distinct: true
+        sourceColumn: class_id
+        joinTable: lesson_sessions
+        joinFilterColumn: class_id
+        joinSelectColumn: teacher_id
+        targetObjectType: teacher
+    derivedProperties:
+      - { name: className, provider: classLookupProvider, inputs: [class_id] }
+
+  teacher:
+    sourceTable: teachers
+    pk: id
+    fieldMappings:
+      - { target: code,                 source: code }
+      - { target: name,                 source: name }
+      - { target: subject,              source: subject }
+      - { target: title,                source: title }
+      - { target: phone,                source: phone }
+      - { target: substituteAvailable,  source: substitute_available }
+      - { target: schoolName,           source: school_id, transform: LOOKUP_NAME, lookup: { table: schools, nameColumn: name } }
+    stableId: { rule: "gid:{sourceId}:{objectType}:{sourcePk}" }
+    relationRules:
+      - { relationType: teacher_in_school, fk: school_id, targetObjectType: school }
+    joinRelationRules: []
+    derivedProperties:
+      - { name: teachingClassNames, provider: teacherClassProvider, inputs: [id] }
+
+  course:
+    sourceTable: courses
+    pk: id
+    fieldMappings:
+      - { target: code,     source: code }
+      - { target: name,     source: name }
+      - { target: subject,  source: subject }
+      - { target: credit,   source: credit }
+      - { target: category, source: category }
+    stableId: { rule: "gid:{sourceId}:{objectType}:{sourcePk}" }
+    relationRules: []
+    joinRelationRules: []
+    derivedProperties: []
+
+  lessonSession:
+    sourceTable: lesson_sessions
+    pk: id
+    fieldMappings:
+      - { target: code,          source: code }
+      - { target: lessonDate,    source: lesson_date, transform: DATE_yyyyMMdd }
+      - { target: startTime,     source: start_time,  transform: TIME_HHmm }
+      - { target: endTime,       source: end_time,    transform: TIME_HHmm }
+      - { target: periodName,    source: period_name }
+      - { target: version,       source: version }
+      - { target: courseName,    source: course_id,    transform: LOOKUP_NAME, lookup: { table: courses,    nameColumn: name } }
+      - { target: className,     source: class_id,     transform: LOOKUP_NAME, lookup: { table: classes,    nameColumn: name } }
+      - { target: teacherName,   source: teacher_id,   transform: LOOKUP_NAME, lookup: { table: teachers,   nameColumn: name } }
+      - { target: classroomName, source: classroom_id, transform: LOOKUP_NAME, lookup: { table: classrooms, nameColumn: name } }
+    stableId: { rule: "gid:{sourceId}:{objectType}:{sourcePk}" }
+    relationRules:
+      # validFromColumns：业务有效时间由定义指定的来源列推导，内核不认识「课表」概念。
+      - { relationType: session_of_class,  fk: class_id,  targetObjectType: class,  validFromColumns: [lesson_date, start_time] }
+      - { relationType: session_of_course, fk: course_id, targetObjectType: course, validFromColumns: [lesson_date, start_time] }
+      - { relationType: session_taught_by, fk: teacher_id,targetObjectType: teacher,validFromColumns: [lesson_date, start_time] }
+      # 批次④ 解除：{ relationType: session_in_classroom, fk: classroom_id, targetObjectType: classroom, validFromColumns: [...] }
+    joinRelationRules: []
+    derivedProperties:
+      - { name: studentCount, provider: classStudentCountProvider, inputs: [class_id] }
+      - { name: status,       resolver: lessonStatusResolver,      inputs: [lessonDate, startTime, endTime, queryTime] }
+
+  # 批次④ 解除：classroom 对象映射 + 3 条教室关系（见架构 §2.5、§10.3）。
+  # classroom:
+  #   sourceTable: classrooms
+  #   pk: id
+  #   fieldMappings: [ ... code/name/building/capacity/room_type/schoolName ... ]
+  #   relationRules: [ ... classroom_in_school / class_home_room / session_in_classroom 反向展示 ... ]
+  #   joinRelationRules: []
+  #   derivedProperties: []
+
+# Java Provider / Resolver 注册清单（策略表）：内核按 key 从 SpiRegistry 取实现，
+# 不出现按业务类型的 switch/if；同一实现可用多个 key 注册（见 SchoolLessonResolver 别名）。
+providers:
+  - { key: classStudentCountProvider, impl: com.school.ontology.adapter.school.provider.ClassStudentCountProvider }
+  - { key: classLookupProvider,       impl: com.school.ontology.adapter.school.provider.ClassLookupProvider }
+  - { key: teacherClassProvider,      impl: com.school.ontology.adapter.school.provider.TeacherClassProvider }
+  - { key: schoolCountProvider,       impl: com.school.ontology.adapter.school.provider.SchoolCountProvider }
+resolvers:
+  - { key: currentLesson,       impl: com.school.ontology.adapter.school.resolver.SchoolLessonResolver }
+  - { key: nextLesson,          impl: com.school.ontology.adapter.school.resolver.SchoolLessonResolver }
+  - { key: lessonStatusResolver,impl: com.school.ontology.adapter.school.resolver.LessonStatusResolver }

@@ -1,0 +1,174 @@
+# 关系类型定义（B2）：标识/名称/起止类型/正反展示名/方向/基数/业务有效时间/生成规则/来源映射。
+# 关系实例落地时必须说明两端对象、存在原因、来源原始记录与映射版本（§3.2 ont_relation/ont_source_ref）。
+version: 1
+relationTypes:
+  - id: student_in_class
+    displayName: 学生所在班级
+    fromType: student
+    toType: class
+    forwardName: 所在班级
+    reverseName: 本班学生
+    direction: OUT
+    cardinality: "N:1"
+    businessEffectiveTime: false
+    generation:
+      kind: FOREIGN_KEY
+      sourceTable: students
+      fkColumn: class_id
+      targetTable: classes
+    sourceMappingRef: school-source.yaml#student
+
+  - id: class_in_school
+    displayName: 班级所属学校
+    fromType: class
+    toType: school
+    forwardName: 所属学校
+    reverseName: 下属班级
+    direction: OUT
+    cardinality: "N:1"
+    businessEffectiveTime: false
+    generation:
+      kind: FOREIGN_KEY
+      sourceTable: classes
+      fkColumn: school_id
+      targetTable: schools
+    sourceMappingRef: school-source.yaml#class
+
+  - id: class_head_teacher
+    displayName: 班级班主任
+    fromType: class
+    toType: teacher
+    forwardName: 班主任
+    reverseName: 所带班级
+    direction: OUT
+    cardinality: "N:1"
+    businessEffectiveTime: false
+    generation:
+      kind: FOREIGN_KEY
+      sourceTable: classes
+      fkColumn: head_teacher_id
+      targetTable: teachers
+    sourceMappingRef: school-source.yaml#class
+
+  - id: teacher_in_school
+    displayName: 教师所属学校
+    fromType: teacher
+    toType: school
+    forwardName: 所属学校
+    reverseName: 在校教师
+    direction: OUT
+    cardinality: "N:1"
+    businessEffectiveTime: false
+    generation:
+      kind: FOREIGN_KEY
+      sourceTable: teachers
+      fkColumn: school_id
+      targetTable: schools
+    sourceMappingRef: school-source.yaml#teacher
+
+  - id: session_of_class
+    displayName: 授课安排-班级
+    fromType: lessonSession
+    toType: class
+    forwardName: 授课班级
+    reverseName: 班级课表
+    direction: OUT
+    cardinality: "N:1"
+    businessEffectiveTime: true
+    generation:
+      kind: FOREIGN_KEY
+      sourceTable: lesson_sessions
+      fkColumn: class_id
+      targetTable: classes
+      validFromColumns: [lesson_date, start_time]
+    sourceMappingRef: school-source.yaml#lessonSession
+
+  - id: session_of_course
+    displayName: 授课安排-课程
+    fromType: lessonSession
+    toType: course
+    forwardName: 授课课程
+    reverseName: 课程安排
+    direction: OUT
+    cardinality: "N:1"
+    businessEffectiveTime: true
+    generation:
+      kind: FOREIGN_KEY
+      sourceTable: lesson_sessions
+      fkColumn: course_id
+      targetTable: courses
+      validFromColumns: [lesson_date, start_time]
+    sourceMappingRef: school-source.yaml#lessonSession
+
+  # 老师替换事件的核心关系：旧关系结束 / 新关系建立，双侧可查同一 changeId。
+  - id: session_taught_by
+    displayName: 授课安排-授课教师
+    fromType: lessonSession
+    toType: teacher
+    forwardName: 授课教师
+    reverseName: 授课安排
+    direction: OUT
+    cardinality: "N:1"
+    businessEffectiveTime: true
+    generation:
+      kind: FOREIGN_KEY
+      sourceTable: lesson_sessions
+      fkColumn: teacher_id
+      targetTable: teachers
+      validFromColumns: [lesson_date, start_time]
+    sourceMappingRef: school-source.yaml#lessonSession
+
+  # 派生关系（联表/明确规则），非外键直连；只在上课当天/时段有效。
+  - id: student_taught_by
+    displayName: 学生-当日任课教师
+    fromType: student
+    toType: teacher
+    forwardName: 当日任课教师
+    reverseName: 授课学生
+    direction: OUT
+    cardinality: "N:M"
+    businessEffectiveTime: true
+    generation:
+      kind: JOIN_RULE
+      rule: "student.class_id == lessonSession.class_id → lessonSession.teacher_id"
+      distinct: true
+      sourceColumn: class_id
+      joinTable: lesson_sessions
+      joinFilterColumn: class_id
+      joinSelectColumn: teacher_id
+      targetTable: teachers
+    sourceMappingRef: school-source.yaml#student
+
+  # ── 教室关系：批次④ 与 classroom 对象定义一并解除注释 ──
+  # 批次①②③ 采用降级配置：教室名称仅存于 lessonSession.attributes.classroomName，
+  # 不建教室对象、不建教室关系（详见架构 §2.4 / §11-I）。
+  # - id: session_in_classroom
+  #   displayName: 授课安排-教室
+  #   fromType: lessonSession
+  #   toType: classroom
+  #   forwardName: 上课教室
+  #   reverseName: 教室使用安排
+  #   direction: OUT
+  #   cardinality: "N:1"
+  #   businessEffectiveTime: true
+  #   generation:
+  #     kind: FOREIGN_KEY
+  #     sourceTable: lesson_sessions
+  #     fkColumn: classroom_id
+  #     targetTable: classrooms
+  #   sourceMappingRef: school-source.yaml#lessonSession
+  # - id: classroom_in_school
+  #   displayName: 教室所属学校
+  #   fromType: classroom
+  #   toType: school
+  #   forwardName: 所属学校
+  #   reverseName: 校内教室
+  #   direction: OUT
+  #   cardinality: "N:1"
+  #   businessEffectiveTime: false
+  #   generation:
+  #     kind: FOREIGN_KEY
+  #     sourceTable: classrooms
+  #     fkColumn: school_id
+  #     targetTable: schools
+  #   sourceMappingRef: school-source.yaml#classroom

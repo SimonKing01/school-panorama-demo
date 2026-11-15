@@ -28,3 +28,16 @@ management:
     web:
       exposure:
         include: health
+
+# 批次② 增量：Outbox 异步投递器参数。
+# 注意：这里只是一个地址字符串，业务服务不 depends_on 本体服务；底座停机时
+# 投递失败只影响 outbox_events 状态，业务事务提交与响应完全不受影响。
+ontology:
+  target-url: ${ONTOLOGY_TARGET_URL:http://ontology-service:8080}
+  dispatch:
+    poll-ms: ${DISPATCH_POLL_MS:1000}
+    batch: ${DISPATCH_BATCH:50}
+    max-attempts: ${DISPATCH_MAX_ATTEMPTS:8}
+    backoff-base-ms: ${DISPATCH_BACKOFF_BASE_MS:1000}
+    # 网络超时要短，避免任何业务路径等待底座。
+    timeout-ms: ${DISPATCH_TIMEOUT_MS:3000}

@@ -1,0 +1,181 @@
+# 对象类型定义（B1）：标识/显示名/说明 · 稳定身份规则 · 属性(名/类型/展示名/校验) ·
+# 默认标题/列表字段/可搜索/可筛选字段 · 来源映射 · 派生属性/计算器引用 · 动态结果。
+# 加载器 ModelDefinitionLoader 强校验，非法定义启动即报错。
+# 三类信息可辨识（C2）：attributes.from = 来源直接存在；derivedProperties = 映射/计算得到；
+# dynamicResolvers = 依赖查询时间的动态结果。
+version: 1
+objectTypes:
+  - id: school
+    displayName: 学校
+    description: 原业务 schools 表映射的基础组织对象
+    identity:
+      sourceId: school-panorama
+      sourceTable: schools
+      sourcePk: id
+      globalIdRule: "gid:{sourceId}:{objectType}:{sourcePk}"
+    titleTemplate: "{name}"
+    listFields: [code, name, address, phone]
+    searchableFields: [code, name]
+    filterableFields: [id]
+    attributes:
+      - { name: code,    type: string, displayName: 编号,     required: true, unique: true }
+      - { name: name,    type: string, displayName: 名称,     required: true }
+      - { name: address, type: string, displayName: 地址 }
+      - { name: phone,   type: string, displayName: 联系电话 }
+      - { name: slogan,  type: string, displayName: 校训 }
+    derivedProperties:
+      - { name: classCount,   type: int, displayName: 班级数, provider: schoolCountProvider }
+      - { name: teacherCount, type: int, displayName: 教师数, provider: schoolCountProvider }
+    dynamicResolvers: []
+    sourceMappingRef: school-source.yaml#school
+
+  - id: class
+    displayName: 班级
+    description: 原业务 classes 表；承载年级、班主任、所属学校
+    identity:
+      sourceId: school-panorama
+      sourceTable: classes
+      sourcePk: id
+      globalIdRule: "gid:{sourceId}:{objectType}:{sourcePk}"
+    titleTemplate: "{name}"
+    listFields: [code, name, grade, schoolName]
+    searchableFields: [code, name]
+    filterableFields: [schoolId, grade]
+    attributes:
+      - { name: code,            type: string, displayName: 编号,   required: true, unique: true }
+      - { name: name,            type: string, displayName: 名称,   required: true }
+      - { name: grade,           type: string, displayName: 年级 }
+      - { name: schoolName,      type: string, displayName: 所属学校, from: "school_id.name" }
+      - { name: headTeacherName, type: string, displayName: 班主任,   from: "head_teacher_id.name" }
+    derivedProperties:
+      - { name: studentCount, type: int, displayName: 学生人数, provider: classStudentCountProvider }
+    dynamicResolvers: [currentLesson, nextLesson]
+    sourceMappingRef: school-source.yaml#class
+
+  - id: student
+    displayName: 学生
+    description: 原业务 students 表；通过 class_id 继承班级课表，不建立学生-课程关联表
+    identity:
+      sourceId: school-panorama
+      sourceTable: students
+      sourcePk: id
+      globalIdRule: "gid:{sourceId}:{objectType}:{sourcePk}"
+    titleTemplate: "{name}"
+    listFields: [code, name, gender, className, schoolName]
+    searchableFields: [code, name, studentNo]
+    filterableFields: [schoolId, classId, gender]
+    attributes:
+      - { name: code,           type: string, displayName: 学号编号,   required: true, unique: true }
+      - { name: name,           type: string, displayName: 姓名,       required: true }
+      - { name: gender,         type: string, displayName: 性别 }
+      - { name: studentNo,      type: string, displayName: 学号 }
+      - { name: guardianPhone,  type: string, displayName: 监护人电话 }
+      - { name: enrollDate,     type: date,   displayName: 入学日期 }
+      - { name: className,      type: string, displayName: 所在班级,   from: "class_id.name" }
+      - { name: schoolName,     type: string, displayName: 所在学校,   from: "class_id.school_id.name" }
+    derivedProperties:
+      - { name: className, type: string, displayName: 所在班级(联表), provider: classLookupProvider }
+    dynamicResolvers: [currentLesson, nextLesson]
+    sourceMappingRef: school-source.yaml#student
+
+  - id: teacher
+    displayName: 教师
+    description: 原业务 teachers 表；所属学校、授课科目、是否可代课
+    identity:
+      sourceId: school-panorama
+      sourceTable: teachers
+      sourcePk: id
+      globalIdRule: "gid:{sourceId}:{objectType}:{sourcePk}"
+    titleTemplate: "{name}"
+    listFields: [code, name, subject, schoolName, title]
+    searchableFields: [code, name]
+    filterableFields: [schoolId, subject]
+    attributes:
+      - { name: code,                 type: string,  displayName: 编号,     required: true, unique: true }
+      - { name: name,                 type: string,  displayName: 姓名,     required: true }
+      - { name: subject,              type: string,  displayName: 授课科目, required: true }
+      - { name: title,                type: string,  displayName: 职称 }
+      - { name: phone,                type: string,  displayName: 联系电话 }
+      - { name: substituteAvailable,  type: boolean, displayName: 可代课 }
+      - { name: schoolName,           type: string,  displayName: 所属学校, from: "school_id.name" }
+    derivedProperties:
+      - { name: teachingClassNames, type: "string[]", displayName: 任教班级(课表推断), provider: teacherClassProvider }
+    dynamicResolvers: [currentLesson, nextLesson]
+    sourceMappingRef: school-source.yaml#teacher
+
+  - id: course
+    displayName: 课程
+    description: 原业务 courses 表
+    identity:
+      sourceId: school-panorama
+      sourceTable: courses
+      sourcePk: id
+      globalIdRule: "gid:{sourceId}:{objectType}:{sourcePk}"
+    titleTemplate: "{name}"
+    listFields: [code, name, subject, credit, category]
+    searchableFields: [code, name]
+    filterableFields: [subject, category]
+    attributes:
+      - { name: code,     type: string,  displayName: 编号, required: true, unique: true }
+      - { name: name,     type: string,  displayName: 名称, required: true }
+      - { name: subject,  type: string,  displayName: 科目, required: true }
+      - { name: credit,   type: decimal, displayName: 学分 }
+      - { name: category, type: string,  displayName: 类别 }
+    derivedProperties: []
+    dynamicResolvers: []
+    sourceMappingRef: school-source.yaml#course
+
+  - id: lessonSession
+    displayName: 具体授课安排
+    description: 原业务 lesson_sessions 表；作为独立对象，承载「哪一天/哪节课/什么角色」，避免师生直连丢失时间与角色信息（C1）
+    identity:
+      sourceId: school-panorama
+      sourceTable: lesson_sessions
+      sourcePk: id
+      globalIdRule: "gid:{sourceId}:{objectType}:{sourcePk}"
+    titleTemplate: "{code} · {courseName} · {className}"
+    listFields: [code, lessonDate, periodName, startTime, endTime, courseName, className, teacherName, classroomName]
+    searchableFields: [code, courseName, className, teacherName]
+    filterableFields: [schoolId, classId, teacherId, lessonDate]
+    attributes:
+      - { name: code,          type: string, displayName: 安排编号, required: true, unique: true }
+      - { name: lessonDate,    type: date,   displayName: 上课日期, required: true }
+      - { name: startTime,     type: time,   displayName: 开始时间, required: true }
+      - { name: endTime,       type: time,   displayName: 结束时间, required: true }
+      - { name: periodName,    type: string, displayName: 节次 }
+      - { name: courseName,    type: string, displayName: 课程,     from: "course_id.name" }
+      - { name: className,     type: string, displayName: 班级,     from: "class_id.name" }
+      - { name: teacherName,   type: string, displayName: 授课教师, from: "teacher_id.name" }
+      - { name: classroomName, type: string, displayName: 教室,     from: "classroom_id.name" }
+      - { name: version,       type: int,    displayName: 业务版本 }
+    derivedProperties:
+      - { name: status,       type: string, displayName: 状态(按查询时间), resolver: lessonStatusResolver }
+      - { name: studentCount, type: int,    displayName: 班级人数,         provider: classStudentCountProvider }
+    dynamicResolvers: [currentLesson, nextLesson]
+    sourceMappingRef: school-source.yaml#lessonSession
+
+  # ── 教室类型：本轮预留，批次④ 通过「解除注释」接入（Q7 必做）──
+  # 批次④ 只解除本文件、relation-types.yaml、school-source.yaml 的注释，
+  # 通用内核 .java 与通用前端零改动（验收四）。
+  # - id: classroom
+  #   displayName: 教室
+  #   description: 原业务 classrooms 表（已存在），后接入证明内核通用性
+  #   identity:
+  #     sourceId: school-panorama
+  #     sourceTable: classrooms
+  #     sourcePk: id
+  #     globalIdRule: "gid:{sourceId}:{objectType}:{sourcePk}"
+  #   titleTemplate: "{name}"
+  #   listFields: [code, name, building, capacity, roomType, schoolName]
+  #   searchableFields: [code, name]
+  #   filterableFields: [schoolId, roomType]
+  #   attributes:
+  #     - { name: code,       type: string, displayName: 编号, required: true, unique: true }
+  #     - { name: name,       type: string, displayName: 名称, required: true }
+  #     - { name: building,   type: string, displayName: 楼栋 }
+  #     - { name: capacity,   type: int,    displayName: 容量 }
+  #     - { name: roomType,   type: string, displayName: 类型 }
+  #     - { name: schoolName, type: string, displayName: 所属学校, from: "school_id.name" }
+  #   derivedProperties: []
+  #   dynamicResolvers: []
+  #   sourceMappingRef: school-source.yaml#classroom

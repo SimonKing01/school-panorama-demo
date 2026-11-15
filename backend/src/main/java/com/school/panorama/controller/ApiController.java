@@ -4,6 +4,7 @@ import com.school.panorama.common.Resp;
 import com.school.panorama.dto.AdjustBody;
 import com.school.panorama.dto.ClockRequest;
 import com.school.panorama.service.AdjustService;
+import com.school.panorama.service.BatchAdjustService;
 import com.school.panorama.service.ChangeService;
 import com.school.panorama.service.DemoClockService;
 import com.school.panorama.service.ObjectViewService;
@@ -30,6 +31,7 @@ public class ApiController {
     @Autowired private OverviewService overviewService;
     @Autowired private ScheduleService scheduleService;
     @Autowired private AdjustService adjustService;
+    @Autowired private BatchAdjustService batchAdjustService;
     @Autowired private ChangeService changeService;
 
     @GetMapping("/health")
@@ -115,6 +117,16 @@ public class ApiController {
     public Map<String, Object> adjust(@PathVariable long id,
                                       @RequestBody(required = false) AdjustBody body) {
         return adjustService.adjust(id, body);
+    }
+
+    /**
+     * 【本轮新增，非原有接口】批量调课（03 契约 §1.3）。
+     * 单一本地事务、逐条复用 8 条校验、任一冲突整体回滚、bump 一次、1 条批次 Outbox 事件。
+     * 既有端点与返回结构逐字未改。
+     */
+    @PostMapping("/schedule/batch-adjust")
+    public Map<String, Object> batchAdjust(@RequestBody(required = false) Map<String, Object> body) {
+        return batchAdjustService.batchAdjust(body);
     }
 
     @GetMapping("/changes")

@@ -2,8 +2,11 @@
 node_modules/
 frontend/node_modules/
 tests/node_modules/
+ontology-web/node_modules/
 frontend/dist/
+ontology-web/dist/
 backend/target/
+ontology-service/target/
 *.jar
 *.class
 

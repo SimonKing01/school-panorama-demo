@@ -8,6 +8,7 @@ import com.school.panorama.mapper.DemoStateMapper;
 import com.school.panorama.mapper.LessonSessionMapper;
 import com.school.panorama.mapper.LessonSessionSeedMapper;
 import com.school.panorama.mapper.SystemRevisionMapper;
+import com.school.panorama.outbox.OutboxEventWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,8 @@ public class DemoClockService {
     @Autowired private LessonSessionMapper lessonSessionMapper;
     @Autowired private LessonSessionSeedMapper seedMapper;
     @Autowired private ChangeRecordMapper changeRecordMapper;
+    // 批次② 增量：演示时间/平移/复位与事件写入同一本地事务。
+    @Autowired private OutboxEventWriter outboxEventWriter;
 
     private DemoState state() {
         DemoState ds = demoStateMapper.selectById(1);
@@ -104,7 +107,11 @@ public class DemoClockService {
         return Resp.map("label", label, "demoTime", Resp.ts(ld.atTime(h, m)));
     }
 
-    /** demoTime 优先；否则 minuteOffset 在当前演示时间上偏移；running 随真实时间推进。 */
+    /**
+     * demoTime 优先；否则 minuteOffset 在当前演示时间上偏移；running 随真实时间推进。
+     * 批次② 补 @Transactional：演示时间更新 + revision bump + CLOCK 事件同一本地事务。
+     */
+    @Transactional
     public Map<String, Object> updateClock(ClockRequest req) {
         LocalDateTime realNow = LocalDateTime.now();
         LocalDateTime current = now();
@@ -117,6 +124,12 @@ public class DemoClockService {
         boolean newRunning = (req != null && req.running != null) ? req.running : running();
         demoStateMapper.updateState(Resp.map("demoAt", newDemoAt, "running", newRunning, "anchorRealAt", realNow));
         bumpRevision();
+        // CLOCK 事件只携带演示时间前后值，不产生对象属性变化；动态结果由底座按 queryTime 实时算。
+        Map<String, Object> payload = Resp.map(
+                "demoAtBefore", Resp.ts(current), "demoAtAfter", Resp.ts(newDemoAt),
+                "running", newRunning, "anchorRealAt", Resp.ts(realNow));
+        outboxEventWriter.append("CLOCK", "DEMO_STATE", "demo_state", null,
+                revision(), newDemoAt, payload);
         return clockView();
     }
 
@@ -135,6 +148,11 @@ public class DemoClockService {
         demoStateMapper.updateState(Resp.map("demoAt", today.atTime(10, 15),
                 "running", false, "anchorRealAt", LocalDateTime.now()));
         bumpRevision();
+        // 批量改写课表只发 1 条全量提示事件，底座据此重扫全部对象类型（不伪造逐条业务历史）。
+        Map<String, Object> payload = Resp.map(
+                "kind", "FULL_SNAPSHOT_HINT", "scope", "ALL_LESSONS", "deltaDays", delta);
+        outboxEventWriter.append("SYNC_TODAY", "SNAPSHOT", "ALL", null,
+                revision(), now(), payload);
         return clockView();
     }
 
@@ -148,6 +166,11 @@ public class DemoClockService {
         demoStateMapper.updateState(Resp.map("demoAt", LocalDate.now().atTime(10, 15),
                 "running", false, "anchorRealAt", LocalDateTime.now()));
         bumpRevision();
+        // RESET 同样只发 1 条全量提示事件；底座重扫后投影与源一致，审计历史按策略保留。
+        Map<String, Object> payload = Resp.map(
+                "kind", "FULL_SNAPSHOT_HINT", "scope", "ALL_LESSONS", "reset", true);
+        outboxEventWriter.append("RESET", "SNAPSHOT", "ALL", null,
+                revision(), now(), payload);
         return clockView();
     }
 }
