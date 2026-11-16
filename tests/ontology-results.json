@@ -1,5 +1,5 @@
 {
-  "time": "2026-11-16 13:11:09",
+  "time": "2026-11-16 14:37:05",
   "bases": {
     "bizApi": "http://127.0.0.1:18080/api",
     "bizWeb": "http://127.0.0.1:5180",
@@ -62,7 +62,7 @@
       "item": "原业务调课提交成功（业务事务不等待底座）",
       "status": "passed",
       "passed": true,
-      "detail": "HTTP 200，提交耗时 20ms，revision=236",
+      "detail": "HTTP 200，提交耗时 14ms，revision=304",
       "group": "验收一·跨系统变化",
       "case": "cross_system"
     },
@@ -78,7 +78,7 @@
       "item": "已打开视角可查到新状态：对象详情",
       "status": "passed",
       "passed": true,
-      "detail": "首次可见 0.017s",
+      "detail": "首次可见 0.028s",
       "group": "验收一·跨系统变化",
       "case": "cross_system"
     },
@@ -86,7 +86,7 @@
       "item": "已打开视角可查到新状态：关系列表",
       "status": "passed",
       "passed": true,
-      "detail": "首次可见 0.023s",
+      "detail": "首次可见 0.054s",
       "group": "验收一·跨系统变化",
       "case": "cross_system"
     },
@@ -94,7 +94,7 @@
       "item": "已打开视角可查到新状态：关系图",
       "status": "passed",
       "passed": true,
-      "detail": "首次可见 0.690s",
+      "detail": "首次可见 0.751s",
       "group": "验收一·跨系统变化",
       "case": "cross_system"
     },
@@ -102,7 +102,7 @@
       "item": "已打开视角可查到新状态：变化记录",
       "status": "passed",
       "passed": true,
-      "detail": "首次可见 0.069s",
+      "detail": "首次可见 0.131s",
       "group": "验收一·跨系统变化",
       "case": "cross_system"
     },
@@ -110,7 +110,7 @@
       "item": "从业务提交成功到四视角全部可查 ≤5 秒（记录真实耗时与条件）",
       "status": "passed",
       "passed": true,
-      "detail": "{\"perViewSec\": {\"对象详情\": 0.017, \"关系列表\": 0.023, \"变化记录\": 0.069, \"关系图\": 0.69}, \"allViewsSec\": 0.69, \"commitLatencyMs\": 20, \"pollIntervalSec\": 0.3, \"condition\": \"本地无故障 / 直连 127.0.0.1 / 轮询间隔 0.3s\"}",
+      "detail": "{\"perViewSec\": {\"对象详情\": 0.028, \"关系列表\": 0.054, \"变化记录\": 0.131, \"关系图\": 0.751}, \"allViewsSec\": 0.751, \"commitLatencyMs\": 14, \"pollIntervalSec\": 0.3, \"condition\": \"本地无故障 / 直连 127.0.0.1 / 轮询间隔 0.3s\"}",
       "group": "验收一·跨系统变化",
       "case": "cross_system"
     },
@@ -118,7 +118,7 @@
       "item": "关系图可见新关系建立与旧关系结束",
       "status": "passed",
       "passed": true,
-      "detail": "edges=8（其中有效 4 条）, 新边(→gid:school-panorama:teacher:5)=True, 旧边(→gid:school-panorama:teacher:1 已结束)=True",
+      "detail": "edges=9（其中有效 4 条）, 新边(→gid:school-panorama:teacher:5)=True, 旧边(→gid:school-panorama:teacher:1 已结束)=True",
       "group": "验收一·跨系统变化",
       "case": "cross_system"
     },
@@ -126,7 +126,7 @@
       "item": "旧老师与新老师两侧都能查到同一次关系变化历史",
       "status": "passed",
       "passed": true,
-      "detail": "旧侧=39 条 / 新侧=40 条 / 共同 changeId=[4, 5, 6, 7, 9]",
+      "detail": "旧侧=58 条 / 新侧=58 条 / 共同 changeId=[4, 5, 6, 7, 9]",
       "group": "验收一·跨系统变化",
       "case": "cross_system"
     },
@@ -150,7 +150,7 @@
       "item": "/revision 返回刷新协议所需五字段",
       "status": "passed",
       "passed": true,
-      "detail": "缺失=[]，实际={\"revision\": 211, \"demoTime\": \"2026-11-16T10:15:00\", \"lastSuccessSyncAt\": \"2026-11-16T13:10:46\", \"pendingCount\": 0, \"sourceUp\": true}",
+      "detail": "缺失=[]，实际={\"revision\": 293, \"demoTime\": \"2026-11-16T10:15:00\", \"lastSuccessSyncAt\": \"2026-11-16T14:36:40\", \"pendingCount\": 0, \"sourceUp\": true}",
       "group": "验收一·跨系统变化",
       "case": "revision_contract"
     },
@@ -158,7 +158,7 @@
       "item": "ont_platform_revision（底座短轮询版本）单调递增、不回退",
       "status": "passed",
       "passed": true,
-      "detail": "211 -> 211",
+      "detail": "293 -> 293",
       "group": "验收一·跨系统变化",
       "case": "revision_contract"
     },
@@ -166,7 +166,7 @@
       "item": "两类时间字段分离（demoTime 与 lastSuccessSyncAt 独立存在）",
       "status": "passed",
       "passed": true,
-      "detail": "demoTime=2026-11-16T10:15:00 / lastSuccessSyncAt=2026-11-16T13:10:46",
+      "detail": "demoTime=2026-11-16T10:15:00 / lastSuccessSyncAt=2026-11-16T14:36:40",
       "group": "验收一·跨系统变化",
       "case": "revision_contract"
     },
@@ -174,7 +174,7 @@
       "item": "三处 revision 语义分离并分别命名：业务 system_revision / ont_platform_revision / 业务水位 snapshotRevision·currentSourceRevision",
       "status": "passed",
       "passed": true,
-      "detail": "业务 system_revision=236（事件/对象水位）；ont_platform_revision=211（/revision，仅前端短轮询）；snapshotRevision=236 / currentSourceRevision=236（/sources/status，业务水位）",
+      "detail": "业务 system_revision=304（事件/对象水位）；ont_platform_revision=293（/revision，仅前端短轮询）；snapshotRevision=304 / currentSourceRevision=304（/sources/status，业务水位）",
       "group": "验收一·跨系统变化",
       "case": "revision_contract"
     },
@@ -182,7 +182,7 @@
       "item": "/sources/status 可读且含五态/进度/映射版本字段",
       "status": "passed",
       "passed": true,
-      "detail": "{\"sourceId\": \"school-panorama\", \"sourceUp\": true, \"status\": \"SYNCED\", \"statusLabel\": \"已同步（新鲜）\", \"lastSuccessSyncAt\": \"2026-11-16T13:10:46\", \"demoTime\": \"2026-11-16T10:15:00\", \"snapshotRevision\": 236, \"currentSourceRevision\": 236, \"pendingCount\": 0, \"processingCount\": 0, \"errorCount\": 0, \"deadCount\":",
+      "detail": "{\"sourceId\": \"school-panorama\", \"sourceUp\": true, \"status\": \"SYNCED\", \"statusLabel\": \"已同步（新鲜）\", \"lastSuccessSyncAt\": \"2026-11-16T14:36:40\", \"demoTime\": \"2026-11-16T10:15:00\", \"snapshotRevision\": 304, \"currentSourceRevision\": 304, \"pendingCount\": 0, \"processingCount\": 0, \"errorCount\": 0, \"deadCount\":",
       "group": "验收二·独立运行与恢复",
       "case": "source_status_contract"
     },
@@ -198,7 +198,7 @@
       "item": "演示业务时间与同步处理时间是两个独立字段（不得混用）",
       "status": "passed",
       "passed": true,
-      "detail": "demoTime=2026-11-16T10:15:00 / lastSuccessSyncAt=2026-11-16T13:10:46",
+      "detail": "demoTime=2026-11-16T10:15:00 / lastSuccessSyncAt=2026-11-16T14:36:40",
       "group": "验收二·独立运行与恢复",
       "case": "source_status_contract"
     },
@@ -214,7 +214,7 @@
       "item": "/sources/status 的 snapshotRevision / currentSourceRevision 使用业务 system_revision 水位（不是 ont_platform_revision）",
       "status": "passed",
       "passed": true,
-      "detail": "业务 system_revision=236 / snapshotRevision=236 / currentSourceRevision=236；前端短轮询的 ont_platform_revision 见 /revision，两者不得混用",
+      "detail": "业务 system_revision=304 / snapshotRevision=304 / currentSourceRevision=304；前端短轮询的 ont_platform_revision 见 /revision，两者不得混用",
       "group": "验收二·独立运行与恢复",
       "case": "source_status_contract"
     },
@@ -254,7 +254,7 @@
       "item": "重复投递未追加变更历史（总数最多 +1）",
       "status": "passed",
       "passed": true,
-      "detail": "changes total 46 -> 47",
+      "detail": "changes total 66 -> 67",
       "group": "验收三·同步正确性",
       "case": "sync_dup_event"
     },
@@ -262,7 +262,7 @@
       "item": "同一 eventId 对应的变化记录不重复（≤1 条）",
       "status": "passed",
       "passed": true,
-      "detail": "命中 1 条（eventId=qa-dup-2212aa76d1ca46e08d5070f6a6b861fe）",
+      "detail": "命中 1 条（eventId=qa-dup-aeb754bbbc624aca87967f4d25372e9e）",
       "group": "验收三·同步正确性",
       "case": "sync_dup_event"
     },
@@ -286,7 +286,7 @@
       "item": "hi/lo 两条事件均带 payload.sourceTable / sourcePk，且解析出同一个 globalId（STALE 判定前提，防止「无对象变化」假通过）",
       "status": "passed",
       "passed": true,
-      "detail": "hi=lesson_sessions:3 / lo=lesson_sessions:3 / hi.revision=239 > lo.revision=238（均为业务 system_revision）",
+      "detail": "hi=lesson_sessions:3 / lo=lesson_sessions:3 / hi.revision=307 > lo.revision=306（均为业务 system_revision）",
       "group": "验收三·同步正确性",
       "case": "sync_stale_event"
     },
@@ -326,7 +326,7 @@
       "item": "旧事件晚到未追加伪造的业务变化历史",
       "status": "passed",
       "passed": true,
-      "detail": "changes total 48 -> 48",
+      "detail": "changes total 68 -> 68",
       "group": "验收三·同步正确性",
       "case": "sync_stale_event"
     },
@@ -366,7 +366,7 @@
       "item": "全量导入已启动并返回 taskId",
       "status": "passed",
       "passed": true,
-      "detail": "HTTP 200 / code=OK / taskId=51",
+      "detail": "HTTP 200 / code=OK / taskId=62",
       "group": "验收三·同步正确性",
       "case": "sync_import_during_change"
     },
@@ -406,7 +406,7 @@
       "item": "导入期间发生的调课变化记录不遗漏",
       "status": "passed",
       "passed": true,
-      "detail": "底座变化总数=33",
+      "detail": "底座变化总数=51",
       "group": "验收三·同步正确性",
       "case": "sync_import_during_change"
     },
@@ -454,7 +454,7 @@
       "item": "DELETE 事件直接经 POST /internal/events 注入并被持久化（无需查业务 Outbox）",
       "status": "passed",
       "passed": true,
-      "detail": "eventId=qa-delete-eea810f62f614cd896a6c7b6d9c5e59a / HTTP 200, ack=True, persisted=True, skipped=None, error=None",
+      "detail": "eventId=qa-delete-5a268e4ffd4b42d7ae6b25ae77bcc68f / HTTP 200, ack=True, persisted=True, skipped=None, error=None",
       "group": "验收三·同步正确性",
       "case": "sync_delete_cleanup"
     },
@@ -478,7 +478,7 @@
       "item": "删除/关系失效有可解释的变化记录",
       "status": "passed",
       "passed": true,
-      "detail": "变化记录数=5（由 DELETE 事件产生，非对账伪造）",
+      "detail": "变化记录数=6（由 DELETE 事件产生，非对账伪造）",
       "group": "验收三·同步正确性",
       "case": "sync_delete_cleanup"
     },
@@ -550,7 +550,7 @@
       "item": "授课安排 LS-003：详情可追溯到 sourceTable / sourcePk / mappingVersion",
       "status": "passed",
       "passed": true,
-      "detail": "source={\"sourceId\": \"school-panorama\", \"sourceTable\": \"lesson_sessions\", \"sourcePk\": \"3\", \"sourceCode\": \"LS-003\", \"sourceHash\": \"01381821ded46f5dc5867cf971a0b59777cdb9bcde450dcf01a01020e3cd983a\", \"mappingVersion\": \"school-panor",
+      "detail": "source={\"sourceId\": \"school-panorama\", \"sourceTable\": \"lesson_sessions\", \"sourcePk\": \"3\", \"sourceCode\": \"LS-003\", \"sourceHash\": \"98ff1206ee7b97c329dad22fe7819c7725a387b8dfeab97bfed253c006ffac42\", \"mappingVersion\": \"school-panor",
       "group": "验收五·来源追溯与可重建",
       "case": "source_traceability"
     },
@@ -622,7 +622,7 @@
       "item": "重建前快照可采集（对象 95 个 / 类型 7 类 / 关系 4 条）",
       "status": "passed",
       "passed": true,
-      "detail": "changes=50 tasks=4 revision=229",
+      "detail": "changes=70 tasks=4 revision=311",
       "group": "验收五·来源追溯与可重建",
       "case": "rebuild_consistency"
     },
@@ -670,7 +670,7 @@
       "item": "重建后审计历史条数不减少（变更历史 / 同步任务全保留）",
       "status": "passed",
       "passed": true,
-      "detail": "changes 50→50 / tasks 4→4",
+      "detail": "changes 70→70 / tasks 4→4",
       "group": "验收五·来源追溯与可重建",
       "case": "rebuild_consistency"
     },
@@ -678,7 +678,7 @@
       "item": "重建后 ont_platform_revision 只增不减",
       "status": "passed",
       "passed": true,
-      "detail": "229 → 230",
+      "detail": "311 → 312",
       "group": "验收五·来源追溯与可重建",
       "case": "rebuild_consistency"
     },
@@ -750,7 +750,7 @@
       "item": "四组 queryTime 期间本体平台零写入（revision 与历史条数不变）",
       "status": "passed",
       "passed": true,
-      "detail": "revision 231→231 / changes total 50→50；证明动态结果不依赖数据变更事件",
+      "detail": "revision 313→313 / changes total 70→70；证明动态结果不依赖数据变更事件",
       "group": "验收六·原业务回归与动态结果",
       "case": "dynamic_no_write"
     },
@@ -774,7 +774,7 @@
       "item": "改演示时间后本体平台默认动态结果随之变化（17:00 当前/下一节均为空）",
       "status": "passed",
       "passed": true,
-      "detail": "等待 1.3s；CLOCK 事件不产生对象属性变化",
+      "detail": "等待 0.7s；CLOCK 事件不产生对象属性变化",
       "group": "验收六·原业务回归与动态结果",
       "case": "dynamic_after_clock"
     },
@@ -782,7 +782,7 @@
       "item": "两类时间分离：底座 demoTime 跟随业务，lastSuccessSyncAt 为真实处理时间",
       "status": "passed",
       "passed": true,
-      "detail": "demoTime=2026-11-16T17:00:00 / lastSuccessSyncAt=2026-11-16T13:11:06",
+      "detail": "demoTime=2026-11-16T17:00:00 / lastSuccessSyncAt=2026-11-16T14:37:02",
       "group": "验收六·原业务回归与动态结果",
       "case": "dynamic_after_clock"
     },
@@ -790,7 +790,7 @@
       "item": "回归·健康检查 /api/health 返回 UP",
       "status": "passed",
       "passed": true,
-      "detail": "HTTP 200 {'status': 'UP', 'db': 'UP', 'demoTime': '2026-11-16T10:15:00', 'revision': 250}",
+      "detail": "HTTP 200 {'status': 'UP', 'db': 'UP', 'demoTime': '2026-11-16T10:15:00', 'revision': 318}",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -958,7 +958,7 @@
       "item": "回归·失败后数据、变更日志、版本号均未改变：缺少原因被拒绝",
       "status": "passed",
       "passed": true,
-      "detail": "changes=3/3 revision=260/260",
+      "detail": "changes=3/3 revision=328/328",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -982,7 +982,7 @@
       "item": "回归·失败后数据、变更日志、版本号均未改变：教师跨校被拒绝（云岭实验教师给星海一中上课）",
       "status": "passed",
       "passed": true,
-      "detail": "changes=3/3 revision=260/260",
+      "detail": "changes=3/3 revision=328/328",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -1006,7 +1006,7 @@
       "item": "回归·失败后数据、变更日志、版本号均未改变：教师科目不符被拒绝（数学教师教语文）",
       "status": "passed",
       "passed": true,
-      "detail": "changes=3/3 revision=260/260",
+      "detail": "changes=3/3 revision=328/328",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -1030,7 +1030,7 @@
       "item": "回归·失败后数据、变更日志、版本号均未改变：教师时间冲突被拒绝（吴嘉豪 10:00 已在初一（2）班）",
       "status": "passed",
       "passed": true,
-      "detail": "changes=3/3 revision=260/260",
+      "detail": "changes=3/3 revision=328/328",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -1054,7 +1054,7 @@
       "item": "回归·失败后数据、变更日志、版本号均未改变：教室时间冲突被拒绝（明理楼 102 已被占用）",
       "status": "passed",
       "passed": true,
-      "detail": "changes=3/3 revision=260/260",
+      "detail": "changes=3/3 revision=328/328",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -1078,7 +1078,7 @@
       "item": "回归·失败后数据、变更日志、版本号均未改变：班级时间冲突被拒绝（11:00 该班已有物理课）",
       "status": "passed",
       "passed": true,
-      "detail": "changes=3/3 revision=260/260",
+      "detail": "changes=3/3 revision=328/328",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -1110,7 +1110,7 @@
       "item": "回归·同一事务生成变更记录（含原因、前后差异、影响）",
       "status": "passed",
       "passed": true,
-      "detail": "changeId=64 diff=4",
+      "detail": "changeId=81 diff=4",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -1118,7 +1118,7 @@
       "item": "回归·数据版本号递增（供其他视角短轮询感知）",
       "status": "passed",
       "passed": true,
-      "detail": "260 -> 261",
+      "detail": "328 -> 329",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -1182,7 +1182,7 @@
       "item": "回归·变更记录列表可查看修改前后、原因、时间、受影响对象",
       "status": "passed",
       "passed": true,
-      "detail": "id=64",
+      "detail": "id=81",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },
@@ -1198,7 +1198,7 @@
       "item": "现有接口验收脚本完整执行（共 51 项，退出码反映失败）",
       "status": "passed",
       "passed": true,
-      "detail": "退出码=0；stdout 尾部=4   [通过] 变更详情可查看完整 diff 与影响面板 — diff=4  === 6. 现场保留 ===   已保留成功调课结果，等待容器重启后执行 --check-persistence 校验持久化。  合计 51 项：通过 51，失败 0 结果已写入 D:\\workbuddy_data\\2026-11-14-11-06-37\\school-panorama-demo\\tests\\acceptance-results.json ；stderr 尾部=",
+      "detail": "退出码=0；stdout 尾部=1   [通过] 变更详情可查看完整 diff 与影响面板 — diff=4  === 6. 现场保留 ===   已保留成功调课结果，等待容器重启后执行 --check-persistence 校验持久化。  合计 51 项：通过 51，失败 0 结果已写入 D:\\workbuddy_data\\2026-11-14-11-06-37\\school-panorama-demo\\tests\\acceptance-results.json ；stderr 尾部=",
       "group": "验收六·原业务回归与动态结果",
       "case": "business_regression"
     },

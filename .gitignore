@@ -34,3 +34,7 @@ Thumbs.db
 # 数据库本地导出
 pgdata/
 *.dump
+
+# Python 运行缓存（验收脚本 py_compile 会生成）
+__pycache__/
+*.pyc

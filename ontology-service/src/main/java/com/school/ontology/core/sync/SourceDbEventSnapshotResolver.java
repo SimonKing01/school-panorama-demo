@@ -10,6 +10,7 @@ import com.school.ontology.core.projection.SnapshotBatch;
 import com.school.ontology.core.projection.SnapshotBuilder;
 import com.school.ontology.core.spi.MappingContext;
 import com.school.ontology.core.spi.OutboxEvent;
+import com.school.ontology.core.spi.RelationInstance;
 import com.school.ontology.core.spi.SourceAdapter;
 import com.school.ontology.core.spi.SourceQuery;
 import com.school.ontology.core.spi.SourceRecord;
@@ -110,33 +111,56 @@ public class SourceDbEventSnapshotResolver implements EventSnapshotResolver {
         }
 
         // 邻居刷新：事件只重建「自身对象」，但关系换边后旧/新邻居的派生属性（如教室的排课数、
-        // 教师的任教班级）会滞后。这里按事件给出的相关对象 gid 重扫来源库，
-        // 放进 refreshBatches（只写对象与来源引用、关系一律不动）；这些对象不进 selfGlobalIds
+        // 教师的任教班级）会滞后。这里按事件给出的相关对象 gid 重扫来源库，放进 refreshBatches
+        // （只写对象与来源引用、关系一律不动）；这些对象不进 selfGlobalIds
         // （业务状态未改变，只写 DERIVED_RELATED 影响）。
+        // 另有 derivedRefreshBatches：邻居里**声明了 JOIN_RULE 派生关系**的对象，其派生边必须
+        // 一起重算（调课换教师后学生的 student_taught_by 要立刻换边，见 P8），
+        // 但走的是独立通道，只动派生关系类型，外键关系零影响。
         List<String> related = new ArrayList<>(new LinkedHashSet<>(relatedGlobalIds(payload)));
         List<SnapshotBatch> refreshBatches = new ArrayList<>();
+        List<SnapshotBatch> derivedRefreshBatches = new ArrayList<>();
         Set<String> handled = new LinkedHashSet<>(selfGlobalIds);
         for (String globalId : related) {
             if (globalId == null || !handled.add(globalId)) {
                 continue;
             }
-            SnapshotBatch refresh = relatedBatch(globalId, ctx);
-            if (refresh != null) {
-                refreshBatches.add(refresh);
+            RelatedRefresh refresh = relatedRefresh(globalId, ctx);
+            if (refresh == null) {
+                continue;
+            }
+            refreshBatches.add(refresh.properties());
+            if (refresh.derived() != null) {
+                derivedRefreshBatches.add(refresh.derived());
             }
         }
         return new EventPlan(batches, tombstones, Map.of(), selfGlobalIds,
-                related, changeInfo(kind, payload, mappingVersion), refreshBatches, changeUnits);
+                related, changeInfo(kind, payload, mappingVersion), refreshBatches, changeUnits,
+                derivedRefreshBatches);
+    }
+
+    /**
+     * 相关对象的两种刷新批次。
+     *
+     * @param properties 属性刷新批次：只带对象与来源引用，relations() 恒为空
+     * @param derived    派生关系批次：只带 JOIN_RULE 关系；该对象类型没有派生规则时为 {@code null}
+     */
+    private record RelatedRefresh(SnapshotBatch properties, SnapshotBatch derived) {
     }
 
     /**
      * 相关对象的刷新批次：解析 gid → 只读重扫来源行 → 构建投影。
      *
-     * <p>刻意只保留 objects() 与 sourceRefs()：
-     * 一是不让邻居批次的关系重算与自身批次互相覆盖（关系只会抖动）；
+     * <p>属性批次刻意只保留 objects() 与 sourceRefs()：
+     * 一是不让邻居批次的外键关系与自身批次互相覆盖（关系只会抖动）；
      * 二是来源行已消失时返回 null 而不是墓碑——邻居不存在不等于被删除，绝不误标墓碑。</p>
+     *
+     * <p>派生关系批次只保留 {@code generation.kind == JOIN_RULE} 的边：这类关系由联表规则算出，
+     * 起点对象即使没有任何字段变化，另一端（教师）换人也会让集合变化，因此必须重算；
+     * 外键关系则由起点对象自己的字段决定，只属于「自身批次」的职责，这里继续丢弃。
+     * 判断是否派生关系一律问 {@link ModelRegistry} 的定义，不写死任何关系类型标识。</p>
      */
-    private SnapshotBatch relatedBatch(String globalId, MappingContext ctx) {
+    private RelatedRefresh relatedRefresh(String globalId, MappingContext ctx) {
         // gid 规则固定为 gid:{sourceId}:{objectType}:{sourcePk}，limit=4 让 sourcePk 里的冒号原样保留。
         String[] parts = globalId.split(":", 4);
         if (parts.length != 4 || !"gid".equals(parts[0])) {
@@ -155,7 +179,21 @@ public class SourceDbEventSnapshotResolver implements EventSnapshotResolver {
             return null;
         }
         SnapshotBatch built = builder.buildAll(records, objectType, ctx);
-        return new SnapshotBatch(built.objects(), new ArrayList<>(), built.sourceRefs());
+        SnapshotBatch properties = new SnapshotBatch(built.objects(), new ArrayList<>(), built.sourceRefs());
+        if (!registry.hasDerivedRelationRules(objectType)) {
+            // 该类型的出边里没有派生关系，重算毫无意义：不建空批次，避免白跑一次按类型停边。
+            return new RelatedRefresh(properties, null);
+        }
+        List<RelationInstance> derived = new ArrayList<>();
+        for (RelationInstance relation : built.relations()) {
+            if (registry.isDerivedRelation(relation.relationType())) {
+                derived.add(relation);
+            }
+        }
+        // 即使 derived 为空也要建批次：派生集合**变空**同样是一次真实变化
+        // （例如该班当天再没有这位老师的课），必须允许落库侧结束旧边。
+        return new RelatedRefresh(properties,
+                new SnapshotBatch(built.objects(), derived, new ArrayList<>()));
     }
 
     private boolean isFullSnapshotHint(String kind, Map<String, Object> payload) {

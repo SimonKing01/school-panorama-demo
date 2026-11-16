@@ -44,6 +44,19 @@ public interface ProjectionStore {
     void deactivateRelationsFromExcept(String globalId, Set<String> keepRelationIds,
                                        LocalDateTime validTo, long revision);
 
+    /**
+     * 按关系类型收窄的「停边」：只结束 from=globalId、relationType ∈ relationTypes、
+     * 且不在保留清单里的有效边。
+     *
+     * <p>用于「相关对象只重算派生关系」这条增量通道：相关对象的重算批次只带 JOIN_RULE
+     * 类型的边，若复用全类型的 {@link #deactivateRelationsFromExcept} 就会把外键关系
+     * 一并误停（批次④ 阻断级回归）。类型集合为空**绝不能**解释成「全部类型」——
+     * 那正是本方法要避免的事情。</p>
+     */
+    void deactivateRelationsFromExceptTypes(String globalId, Set<String> relationTypes,
+                                            Set<String> keepRelationIds,
+                                            LocalDateTime validTo, long revision);
+
     void deactivateRelationsTo(String globalId, LocalDateTime validTo, long revision);
 
     void tombstoneObject(String globalId, long revision);

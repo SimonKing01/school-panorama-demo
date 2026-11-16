@@ -110,6 +110,52 @@ public class ProjectionWriter {
     }
 
     /**
+     * 相关对象的**派生关系**重算：只结束并重建 {@code generation.kind == JOIN_RULE} 的边。
+     *
+     * <p>为什么不能复用 {@link #applySnapshot(SnapshotBatch, long)}：那条路径会对对象的
+     * <b>全部</b>出边做「不在保留清单即结束」，而相关对象的批次只带派生关系，一旦放开就会把
+     * 班级班主任、学生所在班级这类外键关系整批误停（批次④ 阻断级回归）。因此这里把
+     * 「动哪些类型」收窄到定义里声明为 JOIN_RULE 的关系类型 —— 外键关系零影响。</p>
+     *
+     * <p>本方法只写关系，<b>不</b>写对象：对象属性与来源引用由
+     * {@link #applyObjectRefresh(SnapshotBatch, long)} 负责，两条路径各司其职，
+     * 避免同一对象被写两次、刷出重复的版本行。</p>
+     *
+     * <p>关系类型一律从 {@link ModelRegistry} 读取，代码里不出现任何业务类型名，
+     * 新增派生关系类型时本方法零改动。</p>
+     */
+    public void applyDerivedRelationRefresh(SnapshotBatch batch, long watermark) {
+        Set<String> derivedTypes = registry.derivedRelationTypes();
+        if (derivedTypes.isEmpty() || batch.objects().isEmpty()) {
+            return;
+        }
+        // 保留清单：本批次真正算出来的派生边（按起点对象归组）。
+        Map<String, Set<String>> keepByFrom = new HashMap<>();
+        for (RelationInstance relation : batch.relations()) {
+            if (!derivedTypes.contains(relation.relationType())) {
+                continue;
+            }
+            keepByFrom.computeIfAbsent(relation.fromGlobalId(), ignored -> new LinkedHashSet<>())
+                    .add(relation.relationId());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        for (ProjectionRow row : batch.objects()) {
+            if (!registry.hasDerivedRelationRules(row.objectType())) {
+                continue;
+            }
+            // 保留清单为空也照样执行：派生集合变空是一次真实变化，旧边必须结束。
+            store.deactivateRelationsFromExceptTypes(row.globalId(), derivedTypes,
+                    keepByFrom.getOrDefault(row.globalId(), Set.of()), now, watermark);
+        }
+        for (RelationInstance relation : batch.relations()) {
+            if (!derivedTypes.contains(relation.relationType())) {
+                continue;
+            }
+            store.upsertRelation(relation.withRevision(watermark));
+        }
+    }
+
+    /**
      * 事件投影落库（在 EventConsumer 的本体库单事务内调用）。
      * 依次写：对象 + 关系 + 对象版本 + 变更历史 + 影响 + 来源引用 + 平台版本。
      *
@@ -144,6 +190,10 @@ public class ProjectionWriter {
         // 相关对象刷新：只写对象属性与来源引用，绝不重算关系（否则会误停邻居全部出边）。
         for (SnapshotBatch refresh : plan.refreshBatches()) {
             applyObjectRefresh(refresh, revision);
+        }
+        // 相关对象的派生关系重算：单独一条通道，只动 JOIN_RULE 类型，外键关系零影响。
+        for (SnapshotBatch derived : plan.derivedRefreshBatches()) {
+            applyDerivedRelationRefresh(derived, revision);
         }
         for (String globalId : plan.tombstoneGlobalIds()) {
             tombstone(globalId, revision);
@@ -252,14 +302,26 @@ public class ProjectionWriter {
     }
 
     /**
-     * 本事件真正改动关系的对象集合：**自身批次对象 + 墓碑对象**（按定义顺序去重）。
+     * 本事件真正改动关系的对象集合：**自身批次对象 + 墓碑对象 + 派生关系重算对象**（按定义顺序去重）。
      *
      * <p>刻意不含 {@code refreshBatches}：邻居本次只刷新属性、关系不动，
      * 把它们纳入焦点只会把「未变化的关系」算进差集，产生假增删。</p>
+     *
+     * <p>但 {@code derivedRefreshBatches} 必须纳入：那里的派生边**确实会变**
+     * （调课后学生→教师的边换人），不纳入就永远看不到这次换人。
+     * 这些对象的外键边因为起点字段没变、来源行没变，前后快照自然一致，差集为空——
+     * 不会产生假增删（由单测逐条证明）。</p>
      */
     private static Set<String> focusGlobalIds(EventPlan plan) {
         Set<String> result = new LinkedHashSet<>();
         for (SnapshotBatch batch : plan.batches()) {
+            for (ProjectionRow row : batch.objects()) {
+                if (row.globalId() != null && !row.globalId().isBlank()) {
+                    result.add(row.globalId());
+                }
+            }
+        }
+        for (SnapshotBatch batch : plan.derivedRefreshBatches()) {
             for (ProjectionRow row : batch.objects()) {
                 if (row.globalId() != null && !row.globalId().isBlank()) {
                     result.add(row.globalId());

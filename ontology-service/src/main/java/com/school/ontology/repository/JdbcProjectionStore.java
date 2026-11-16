@@ -93,6 +93,25 @@ public class JdbcProjectionStore implements ProjectionStore {
     }
 
     @Override
+    public void deactivateRelationsFromExceptTypes(String globalId, Set<String> relationTypes,
+                                                   Set<String> keepRelationIds,
+                                                   LocalDateTime validTo, long revision) {
+        if (relationTypes == null || relationTypes.isEmpty()) {
+            // 空类型集绝不退化成「全部类型」：那会把外键关系一并停掉（批次④ 阻断级回归）。
+            return;
+        }
+        for (RelationInstance relation : repository.relationsFrom(globalId, false)) {
+            if (!relationTypes.contains(relation.relationType())) {
+                continue;
+            }
+            if (keepRelationIds.contains(relation.relationId())) {
+                continue;
+            }
+            repository.deactivateRelation(relation.relationId(), validTo, revision);
+        }
+    }
+
+    @Override
     public void deactivateRelationsTo(String globalId, LocalDateTime validTo, long revision) {
         for (RelationInstance relation : repository.relationsTo(globalId, false)) {
             repository.deactivateRelation(relation.relationId(), validTo, revision);

@@ -120,6 +120,32 @@ public class InMemoryProjectionStore implements ProjectionStore {
     }
 
     @Override
+    public void deactivateRelationsFromExceptTypes(String globalId, Set<String> relationTypes,
+                                                   Set<String> keepRelationIds,
+                                                   LocalDateTime validTo, long revision) {
+        if (relationTypes == null || relationTypes.isEmpty()) {
+            // 与 JDBC 实现对齐：空类型集不退化成「全部类型」。
+            return;
+        }
+        for (Map.Entry<String, RelationInstance> entry : new ArrayList<>(relations.entrySet())) {
+            RelationInstance relation = entry.getValue();
+            if (!relation.active() || !relation.fromGlobalId().equals(globalId)) {
+                continue;
+            }
+            if (!relationTypes.contains(relation.relationType())) {
+                continue;
+            }
+            if (keepRelationIds.contains(relation.relationId())) {
+                continue;
+            }
+            if (revision < relation.appliedRevision()) {
+                continue;
+            }
+            relations.put(entry.getKey(), deactivated(relation, validTo, revision));
+        }
+    }
+
+    @Override
     public void deactivateRelationsTo(String globalId, LocalDateTime validTo, long revision) {
         for (Map.Entry<String, RelationInstance> entry : new ArrayList<>(relations.entrySet())) {
             RelationInstance relation = entry.getValue();
