@@ -7,6 +7,27 @@ export interface ApiEnvelope<T> {
   message: string
 }
 
+/**
+ * 带机器可读信息的接口错误。
+ *
+ * <p>校验失败（400 VALIDATION_FAILED）时 {@code data.errors[]} 是逐条中文错误，
+ * 409 DELETE_IMPACT_CONFIRM 时 {@code data} 是删除影响清单。
+ * 继承自 Error，因此既有 {@code e instanceof Error ? e.message} 的调用点不受影响。</p>
+ */
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string
+  readonly data: unknown
+
+  constructor(status: number, code: string, message: string, data: unknown) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+    this.data = data
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
@@ -22,13 +43,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!response.ok) {
     let message = `请求失败（HTTP ${response.status}）`
+    let code = `HTTP_${response.status}`
+    let data: unknown = null
     try {
       const body = (await response.json()) as ApiEnvelope<unknown>
       if (body.message) message = body.message
+      if (body.code) code = body.code
+      data = body.data ?? null
     } catch {
       // 非 JSON 错误体，保留 HTTP 状态提示。
     }
-    throw new Error(message)
+    throw new ApiError(response.status, code, message, data)
   }
   let body: ApiEnvelope<T>
   try {
@@ -37,7 +62,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error('本体服务返回的内容无法解析')
   }
   if (body.code !== 'OK') {
-    throw new Error(body.message || `本体服务返回错误码：${body.code}`)
+    throw new ApiError(response.status, body.code, body.message || `本体服务返回错误码：${body.code}`,
+      body.data ?? null)
   }
   return body.data
 }
@@ -63,5 +89,11 @@ export const api = {
   },
   post<T>(path: string, body: unknown = {}): Promise<T> {
     return request<T>(path, { method: 'POST', body: JSON.stringify(body) })
+  },
+  put<T>(path: string, body: unknown = {}): Promise<T> {
+    return request<T>(path, { method: 'PUT', body: JSON.stringify(body) })
+  },
+  del<T>(path: string, body: unknown = {}): Promise<T> {
+    return request<T>(path, { method: 'DELETE', body: JSON.stringify(body) })
   },
 }

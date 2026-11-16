@@ -20,8 +20,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<OntApiResponse<Object>> handleApi(ApiException e) {
+        // data 原样带出（校验失败逐条 errors、删除影响清单等），既有异常 data 为 null 时结构不变。
         return ResponseEntity.status(e.httpStatus)
-                .body(OntApiResponse.fail(e.code, e.getMessage()));
+                .body(OntApiResponse.fail(e.code, e.getMessage(), e.data));
     }
 
     @ExceptionHandler(Exception.class)

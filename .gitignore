@@ -21,6 +21,9 @@ id_ed25519
 # 测试运行产生的临时状态
 tests/.persistence-state.json
 
+# 关系类型在线编辑的 overlay（运行时数据，不进版本库；恢复基线=回退打包的 relation-types.yaml）
+ontology-data/
+
 # 编辑器 / 操作系统
 .idea/
 .vscode/

@@ -59,7 +59,8 @@ class RebuildServiceTest {
         LinkedHashMap<String, SnapshotBatch> batches = new LinkedHashMap<>();
         batches.put("student", batch);
         RebuildService service = new RebuildService(
-                new FakeSnapshotSource(batches, 84, 84), store, writer);
+                new FakeSnapshotSource(batches, 84, 84), store, writer,
+                TestFixtures.minimalRegistry());
         long taskId = service.rebuild();
 
         assertTrue(taskId > 0);
@@ -74,5 +75,34 @@ class RebuildServiceTest {
         assertEquals(errorsBefore, store.errorLogCount(), "错误记录不得减少");
         assertTrue(store.platformRevision() > revisionBefore, "平台版本只增不减");
         assertEquals("SUCCESS", store.syncTasks().get(store.syncTasks().size() - 1).get("status"));
+
+        // 缺陷回归：重建成功即视为一次成功同步，数据源水位必须跟到本次 watermark。
+        Map<String, Object> dataSource = store.dataSource(TestFixtures.SOURCE_ID);
+        assertEquals(84L, dataSource.get("snapshotRevision"),
+                "重建后 snapshot_revision 必须等于本次水位，不能停在旧值");
+        assertTrue(dataSource.get("lastSuccessSyncAt") != null,
+                "重建后必须刷新 last_success_sync_at，否则页面显示上次导入时间");
+        assertEquals("SYNCED", dataSource.get("status"), "重建成功即视为已同步");
+        assertEquals(0L, dataSource.get("errorCount"), "重建成功清零错误计数");
+    }
+
+    @Test
+    void 重建失败时把数据源降级为DEGRADED() {
+        // P7-2：重建是「先清空投影、再逐批写回」的非事务流程，中途失败时投影必然残缺。
+        // 若数据源仍写 SYNCED，overview 会继续宣称「已同步」，而实际对象已少了一大半。
+        InMemoryProjectionStore store = new InMemoryProjectionStore();
+        ProjectionWriter writer = new ProjectionWriter(store, TestFixtures.minimalRegistry());
+        store.updateDataSource(TestFixtures.SOURCE_ID, Map.of("status", "SYNCED"));
+
+        RebuildService service = new RebuildService(
+                new FakeSnapshotSource(new LinkedHashMap<>(), 84, 84).healthy(false),
+                store, writer, TestFixtures.minimalRegistry());
+        long taskId = service.rebuild();
+
+        assertTrue(taskId > 0);
+        assertEquals("FAILED", store.syncTasks().get(store.syncTasks().size() - 1).get("status"),
+                "重建失败必须落 FAILED 终态，不能留 RUNNING 孤儿");
+        assertEquals("DEGRADED", store.dataSource(TestFixtures.SOURCE_ID).get("status"),
+                "重建失败后数据源必须降级，否则 overview 会继续显示已同步");
     }
 }

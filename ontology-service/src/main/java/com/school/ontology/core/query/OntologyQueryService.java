@@ -117,11 +117,19 @@ public class OntologyQueryService {
                     "forwardName", def.forwardName, "reverseName", def.reverseName,
                     "direction", def.direction, "cardinality", def.cardinality,
                     "businessEffectiveTime", def.businessEffectiveTime,
+                    // 既有键一个不动，只补 JOIN_RULE 侧字段：在线编辑表单需要完整规则，
+                    // 否则「打开一个联表关系再保存」会把 joinTable 等字段抹掉。
                     "generation", Resp.map("kind", def.generation.kind,
                             "sourceTable", def.generation.sourceTable,
                             "fkColumn", def.generation.fkColumn,
                             "targetTable", def.generation.targetTable,
-                            "rule", def.generation.rule),
+                            "rule", def.generation.rule,
+                            "distinct", def.generation.distinct,
+                            "sourceColumn", def.generation.sourceColumn,
+                            "joinTable", def.generation.joinTable,
+                            "joinFilterColumn", def.generation.joinFilterColumn,
+                            "joinSelectColumn", def.generation.joinSelectColumn,
+                            "validFromColumns", def.generation.validFromColumns),
                     "sourceMappingRef", def.sourceMappingRef));
         }
         return Resp.map("mappingVersion", loader.mappingVersion().mappingVersion,
@@ -186,17 +194,16 @@ public class OntologyQueryService {
         String objectType = OntologyRepository.str(row.get("object_type"));
         ObjectTypeDef def = registry.typeOf(objectType);
         Map<String, Object> attributes = repository.parseMap(row.get("attributes"));
-        List<Map<String, Object>> attributeViews = new ArrayList<>();
-        for (AttributeDef attr : def.attributes) {
-            attributeViews.add(Resp.map("name", attr.name, "displayName", attr.displayName,
-                    "value", attributes.get(attr.name), "origin", "SOURCE"));
-        }
-        for (DerivedPropertyDef derived : def.derivedProperties) {
-            attributeViews.add(Resp.map("name", derived.name, "displayName", derived.displayName,
-                    "value", attributes.get(derived.name), "origin", "DERIVED",
-                    "provider", derived.provider, "resolver", derived.resolver));
-        }
         List<DynamicResult> dynamicResults = dispatcher.resolveAll(globalId, objectType, queryTime);
+        // resolver 驱动的派生属性只在查询时算、不落库，必须用同一查询时间算出的动态结果回填，
+        // 否则详情页「状态(按查询时间)」恒为「—」（provider 驱动的仍取落库值，不被覆盖）。
+        Map<String, Object> dynamicValues = new LinkedHashMap<>();
+        for (DynamicResult result : dynamicResults) {
+            if (result.key() != null) {
+                dynamicValues.put(result.key(), result.value());
+            }
+        }
+        List<Map<String, Object>> attributeViews = attributeViews(def, attributes, dynamicValues);
         List<Map<String, Object>> forward = new ArrayList<>();
         for (var relation : repository.relationsFrom(globalId, true)) {
             forward.add(graphService.relationView(relation));
@@ -213,10 +220,15 @@ public class OntologyQueryService {
             break;
         }
         Map<String, Object> recent = changeQuery.changes(globalId, null, 1, 5);
+        boolean deleted = OntologyRepository.bool(row.get("deleted"));
         return Resp.map(
                 "globalId", globalId,
                 "type", objectType,
                 "title", OntologyRepository.str(row.get("title")),
+                // 墓碑对象仍可查（便于追溯「它曾经是什么」），但必须显式暴露 deleted，
+                // 否则前端与验收都无法区分「存在」与「已在来源删除」。
+                "deleted", deleted,
+                "deletedHint", deleted ? "该对象已在来源业务库中删除，关系与属性为删除前最后快照" : null,
                 "mappingVersion", OntologyRepository.str(row.get("mapping_version")),
                 "attributes", attributeViews,
                 "dynamicResults", dynamicResults,
@@ -224,6 +236,33 @@ public class OntologyQueryService {
                 "recentChanges", recent.get("items"),
                 "source", source,
                 "backToBusinessUrl", businessWebBase + "/objects?type=" + objectType);
+    }
+
+    /**
+     * 详情页属性数组（验收要求 attributes 是数组且带 origin）。
+     *
+     * <p>来源直接属性 origin=SOURCE；映射/计算得到的 origin=DERIVED。
+     * provider 驱动的派生属性已在快照期落库，取落库值；resolver 驱动的只在查询时算，
+     * 落库值恒为空，这里用同名 resolver key 的动态结果回填（找不到就保持 null）。</p>
+     */
+    static List<Map<String, Object>> attributeViews(ObjectTypeDef def,
+                                                    Map<String, Object> storedAttributes,
+                                                    Map<String, Object> dynamicValues) {
+        List<Map<String, Object>> views = new ArrayList<>();
+        for (AttributeDef attr : def.attributes) {
+            views.add(Resp.map("name", attr.name, "displayName", attr.displayName,
+                    "value", storedAttributes.get(attr.name), "origin", "SOURCE"));
+        }
+        for (DerivedPropertyDef derived : def.derivedProperties) {
+            Object value = storedAttributes.get(derived.name);
+            if (value == null && derived.resolver != null && !derived.resolver.isBlank()) {
+                value = dynamicValues.get(derived.resolver);
+            }
+            views.add(Resp.map("name", derived.name, "displayName", derived.displayName,
+                    "value", value, "origin", "DERIVED",
+                    "provider", derived.provider, "resolver", derived.resolver));
+        }
+        return views;
     }
 
     public Map<String, Object> search(String q) {

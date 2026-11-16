@@ -5,6 +5,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.school.ontology.common.Resp;
 import com.school.ontology.core.spi.DerivedPropertyProvider;
 import com.school.ontology.core.spi.DynamicResolver;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -48,18 +49,74 @@ public class ModelDefinitionLoader {
     private final ModelRegistry registry;
     private final MappingVersion mappingVersion;
     private final String definitionHash;
+    /** 实际生效的三份文本（hash 覆盖它们；overlay 存在时 relText 来自 overlay）。 */
+    private final String objectText;
+    private final String effectiveRelationText;
+    private final String sourceText;
+    /** BASELINE / OVERLAY / OVERLAY_FALLBACK，用于管理页展示「生效定义从哪来」。 */
+    private final String definitionSource;
+    /** 打包基线（忽略 overlay）的版本，供「恢复基线」判断是否已回到基线。 */
+    private final MappingVersion baselineMappingVersion;
 
+    /** 单元测试 / 无 Spring 场景：只读打包基线，没有 overlay。 */
     public ModelDefinitionLoader() {
+        this(null);
+    }
+
+    /**
+     * 生产构造：先读三份打包基线，再尝试用 overlay 覆盖关系类型定义。
+     *
+     * <p>两条闸门严格区分（07 增量设计 §5.3）：</p>
+     * <ul>
+     *   <li><b>基线非法</b> → 抛 {@link IllegalStateException} 拒绝启动（与 B1 口径一致）；</li>
+     *   <li><b>overlay 非法</b> → 隔离坏文件 + 记录 OVERLAY_FALLBACK + 回退基线照常启动，
+     *       任何情况下都不允许坏配置把服务锁死。</li>
+     * </ul>
+     */
+    @Autowired
+    public ModelDefinitionLoader(DefinitionFileStore fileStore) {
         YAMLMapper mapper = new YAMLMapper();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        this.objectDocument = read(mapper, OBJECT_TYPES_FILE, ModelDocument.ObjectTypeDocument.class);
-        this.relationDocument = read(mapper, RELATION_TYPES_FILE, ModelDocument.RelationTypeDocument.class);
-        this.sourceDocument = read(mapper, SOURCE_MAPPING_FILE, ModelDocument.SourceMappingDocument.class);
+        this.objectText = readText(OBJECT_TYPES_FILE);
+        String baselineRelationText = readText(RELATION_TYPES_FILE);
+        this.sourceText = readText(SOURCE_MAPPING_FILE);
+        this.objectDocument = parse(mapper, objectText, ModelDocument.ObjectTypeDocument.class, OBJECT_TYPES_FILE);
+        ModelDocument.RelationTypeDocument baselineRelationDocument =
+                parse(mapper, baselineRelationText, ModelDocument.RelationTypeDocument.class, RELATION_TYPES_FILE);
+        this.sourceDocument = parse(mapper, sourceText, ModelDocument.SourceMappingDocument.class, SOURCE_MAPPING_FILE);
 
-        List<String> errors = validate(objectDocument, relationDocument, sourceDocument);
-        if (!errors.isEmpty()) {
-            throw new IllegalStateException("本体模型定义非法，服务拒绝启动：\n - " + String.join("\n - ", errors));
+        // 闸门 1：打包基线非法 → 拒绝启动（绝不放宽）。
+        List<String> baselineErrors = validate(objectDocument, baselineRelationDocument, sourceDocument);
+        if (!baselineErrors.isEmpty()) {
+            throw new IllegalStateException("本体模型定义非法，服务拒绝启动：\n - "
+                    + String.join("\n - ", baselineErrors));
         }
+
+        // 闸门 2：overlay 优先；非法则回退基线并留证，不影响启动。
+        String effectiveRelationText = baselineRelationText;
+        ModelDocument.RelationTypeDocument effectiveRelationDocument = baselineRelationDocument;
+        String definitionSource = "BASELINE";
+        if (fileStore != null && fileStore.overlayExists()) {
+            try {
+                String overlayText = fileStore.readOverlayText();
+                ModelDocument.RelationTypeDocument overlayDocument = parse(mapper, overlayText,
+                        ModelDocument.RelationTypeDocument.class, "overlay:" + DefinitionFileStore.OVERLAY_FILE);
+                List<String> overlayErrors = validate(objectDocument, overlayDocument, sourceDocument);
+                if (!overlayErrors.isEmpty()) {
+                    throw new OverlayInvalidException(String.join("；", overlayErrors));
+                }
+                effectiveRelationText = overlayText;
+                effectiveRelationDocument = overlayDocument;
+                definitionSource = "OVERLAY";
+            } catch (Exception e) {
+                String reason = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                fileStore.quarantineInvalidOverlay(reason);
+                definitionSource = "OVERLAY_FALLBACK";
+            }
+        }
+        this.definitionSource = definitionSource;
+        this.effectiveRelationText = effectiveRelationText;
+        this.relationDocument = effectiveRelationDocument;
 
         Map<String, ObjectTypeDef> types = new LinkedHashMap<>();
         for (ObjectTypeDef def : objectDocument.objectTypes) {
@@ -77,12 +134,13 @@ public class ModelDefinitionLoader {
         String sourceId = sourceDocument.dataSource.id;
         this.registry = new ModelRegistry(types, relations, mappings, sourceId);
 
-        this.definitionHash = Resp.sha256(readText(OBJECT_TYPES_FILE)
-                + "\n" + readText(RELATION_TYPES_FILE)
-                + "\n" + readText(SOURCE_MAPPING_FILE));
-        String version = sourceId + ":" + definitionHash.substring(0, 12);
-        this.mappingVersion = new MappingVersion(sourceId, version, "sha256:" + definitionHash,
-                LocalDateTime.now(), "ACTIVE");
+        // hash 必须覆盖「实际生效」的三份文本：overlay 改任何字段都要让版本变化。
+        this.definitionHash = Resp.sha256(objectText + "\n" + effectiveRelationText + "\n" + sourceText);
+        this.mappingVersion = new MappingVersion(sourceId, sourceId + ":" + definitionHash.substring(0, 12),
+                "sha256:" + definitionHash, LocalDateTime.now(), "ACTIVE");
+        String baselineHash = Resp.sha256(objectText + "\n" + baselineRelationText + "\n" + sourceText);
+        this.baselineMappingVersion = new MappingVersion(sourceId, sourceId + ":" + baselineHash.substring(0, 12),
+                "sha256:" + baselineHash, LocalDateTime.now(), "ACTIVE");
     }
 
     public ModelRegistry registry() {
@@ -95,6 +153,31 @@ public class ModelDefinitionLoader {
 
     public String definitionHash() {
         return definitionHash;
+    }
+
+    /** 实际生效的定义来源：BASELINE / OVERLAY / OVERLAY_FALLBACK。 */
+    public String definitionSource() {
+        return definitionSource;
+    }
+
+    /** 生效的对象类型定义原文（hash 的组成部分，编辑时算新版本要用）。 */
+    public String objectText() {
+        return objectText;
+    }
+
+    /** 生效的关系类型定义原文（overlay 存在时就是 overlay 文本）。 */
+    public String effectiveRelationText() {
+        return effectiveRelationText;
+    }
+
+    /** 生效的来源映射原文（hash 的组成部分）。 */
+    public String sourceText() {
+        return sourceText;
+    }
+
+    /** 打包基线（忽略 overlay）对应的版本，「恢复基线」用它判断是否已在基线上。 */
+    public MappingVersion baselineMappingVersion() {
+        return baselineMappingVersion;
     }
 
     public ModelDocument.ObjectTypeDocument objectDocument() {
@@ -351,11 +434,12 @@ public class ModelDefinitionLoader {
         }
     }
 
-    private static <T> T read(YAMLMapper mapper, String path, Class<T> type) {
-        try (InputStream in = new ClassPathResource(path).getInputStream()) {
-            return mapper.readValue(in, type);
-        } catch (IOException e) {
-            throw new IllegalStateException("无法读取本体定义文件：" + path, e);
+    private static <T> T parse(YAMLMapper mapper, String text, Class<T> type, String label) {
+        try {
+            return mapper.readValue(text, type);
+        } catch (Exception e) {
+            throw new IllegalStateException("无法解析本体定义文件：" + label
+                    + "（" + e.getClass().getSimpleName() + ": " + e.getMessage() + "）", e);
         }
     }
 

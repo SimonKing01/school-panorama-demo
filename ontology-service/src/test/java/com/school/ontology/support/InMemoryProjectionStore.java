@@ -167,6 +167,31 @@ public class InMemoryProjectionStore implements ProjectionStore {
     }
 
     @Override
+    public List<RelationInstance> activeRelationsFrom(String globalId) {
+        return activeRelations(globalId, true);
+    }
+
+    @Override
+    public List<RelationInstance> activeRelationsTo(String globalId) {
+        return activeRelations(globalId, false);
+    }
+
+    /** 与 JDBC 实现对齐：只返回 active 且指定端匹配的关系。 */
+    private List<RelationInstance> activeRelations(String globalId, boolean asFrom) {
+        List<RelationInstance> result = new ArrayList<>();
+        for (RelationInstance relation : relations.values()) {
+            if (!relation.active()) {
+                continue;
+            }
+            String endpoint = asFrom ? relation.fromGlobalId() : relation.toGlobalId();
+            if (endpoint != null && endpoint.equals(globalId)) {
+                result.add(relation);
+            }
+        }
+        return result;
+    }
+
+    @Override
     public long changeHistoryCount() {
         return changeHistory.size();
     }
@@ -271,6 +296,16 @@ public class InMemoryProjectionStore implements ProjectionStore {
 
     public List<Map<String, Object>> syncTasks() {
         return syncTasks;
+    }
+
+    /** 对象版本行（测试用：验证「无变化不追加版本」与邻居刷新次数）。 */
+    public List<Map<String, Object>> objectVersions() {
+        return new ArrayList<>(objectVersions);
+    }
+
+    /** 某条变更记录的影响对象行（测试用：验证角色划分与「不给同批兄弟互标」）。 */
+    public List<Map<String, Object>> impactsOf(long changeId) {
+        return new ArrayList<>(impacts.getOrDefault(changeId, List.of()));
     }
 
     private static RelationInstance deactivated(RelationInstance relation,

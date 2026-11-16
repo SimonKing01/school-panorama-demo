@@ -94,11 +94,20 @@ public class OverviewService {
         long errorCount = OntologyRepository.lng(ds.get("error_count"));
         String lastSuccessSyncAt = Resp.ts(
                 OntologyRepository.dateTime(ds.get("last_success_sync_at")));
-        String status = resolveStatus(sourceUp, pendingCount, deadCount, failedCount,
-                errorCount, lastSuccessSyncAt);
+        long snapshotRevision = OntologyRepository.lng(ds.get("snapshot_revision"));
         long currentSourceRevision = sourceUp
                 ? adapter.currentWatermark()
                 : OntologyRepository.lng(ds.get("current_source_revision"));
+        long objectCount = repository.countObjects();
+        String status = resolveStatus(sourceUp, pendingCount, deadCount, failedCount, errorCount,
+                snapshotRevision, currentSourceRevision, lastSuccessSyncAt, objectCount);
+        // 重建失败会把投影留在「已清空、只写回一部分」的残缺状态（P7-2）。此时各计数指标可能
+        // 全都正常（pending=0、dead=0、error=0、水位也对得上），只看指标会对外宣称「已同步」，
+        // 而实际对象少了一大半。因此数据源上的 DEGRADED 标记必须优先于指标重算结果。
+        if ("FAILED".equals(status) == false
+                && "DEGRADED".equals(OntologyRepository.str(ds.get("status")))) {
+            status = "FAILED";
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("sourceId", sourceId);
@@ -107,7 +116,7 @@ public class OverviewService {
         result.put("statusLabel", STATUS_LABELS.get(status));
         result.put("lastSuccessSyncAt", lastSuccessSyncAt);
         result.put("demoTime", Resp.ts(currentDemoTime(ds)));
-        result.put("snapshotRevision", OntologyRepository.lng(ds.get("snapshot_revision")));
+        result.put("snapshotRevision", snapshotRevision);
         result.put("currentSourceRevision", currentSourceRevision);
         result.put("pendingCount", pendingCount);
         result.put("processingCount", 0L);
@@ -115,8 +124,7 @@ public class OverviewService {
         result.put("deadCount", deadCount);
         result.put("freshness", STATUS_LABELS.get(status));
         result.put("mappingVersion", OntologyRepository.str(ds.get("mapping_version")));
-        result.put("hint", sourceUp ? STATUS_HINTS.get(status)
-                : "来源不可用：仍可查询已同步数据；最后成功同步时间见上。");
+        result.put("hint", hintOf(status, sourceUp, snapshotRevision, currentSourceRevision));
         return result;
     }
 
@@ -140,20 +148,48 @@ public class OverviewService {
         return new BusinessTime(demoAt, running, anchor).at(LocalDateTime.now());
     }
 
-    private String resolveStatus(boolean sourceUp, long pendingCount, long deadCount,
-                                 long failedCount, long errorCount, String lastSuccessSyncAt) {
+    /**
+     * 五态判定（顺序即优先级）。与具体业务类型无关，只看同步健康度数据。
+     *
+     * <p>{@code lastSuccessSyncAt == null} 判定排在「水位落后」之前：
+     * 从未成功导入过的库 snapshot_revision=0、来源 revision 必然更大，
+     * 若先判落后会永远显示「同步落后」，把「尚未接入」这个更可操作的状态掩盖掉。</p>
+     */
+    static String resolveStatus(boolean sourceUp, long pendingCount, long deadCount,
+                                long failedCount, long errorCount, long snapshotRevision,
+                                long currentSourceRevision, String lastSuccessSyncAt,
+                                long objectCount) {
         if (deadCount > 0 || failedCount > 0 || errorCount > 0) {
             return "FAILED";
         }
-        if (!sourceUp || pendingCount > 0) {
+        if (!sourceUp) {
+            return "LAGGING";
+        }
+        if (pendingCount > 0) {
             return "LAGGING";
         }
         if (lastSuccessSyncAt == null) {
             return "NOT_CONNECTED";
         }
-        if (repository.countObjects() == 0) {
+        if (snapshotRevision < currentSourceRevision) {
+            return "LAGGING";
+        }
+        if (objectCount == 0) {
             return "NO_DATA";
         }
         return "SYNCED";
+    }
+
+    /** 文案不写死：落后时带上两个真实水位数字，便于直接看出差多少。 */
+    static String hintOf(String status, boolean sourceUp, long snapshotRevision,
+                         long currentSourceRevision) {
+        if (!sourceUp) {
+            return "来源不可用：仍可查询已同步数据；最后成功同步时间见上。";
+        }
+        if ("LAGGING".equals(status) && snapshotRevision < currentSourceRevision) {
+            return "同步落后：快照水位 " + snapshotRevision + " < 来源 " + currentSourceRevision
+                    + "，请在全量导入或重建后重试。";
+        }
+        return STATUS_HINTS.get(status);
     }
 }

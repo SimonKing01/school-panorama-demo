@@ -34,6 +34,18 @@ public class OntologyRepository {
     private static final Pattern SAFE_IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     private static final Pattern SAFE_JSON_KEY = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
+    /**
+     * 库里这一行是否已经带有「人写的署名」。
+     *
+     * <p>判定为真的条件：operator 非空、非空白且不是登记器占位用的 {@code system}。
+     * 一旦为真，任何调用方都不许把它改回 {@code system}——这是 P6 缺陷的硬约束：
+     * 「禁止用 {@code system / startup-overlay} 覆盖人写的 operator」。</p>
+     */
+    private static final String HUMAN_SIGNATURE =
+            "(ont_mapping_version.operator IS NOT NULL "
+                    + " AND btrim(ont_mapping_version.operator) <> '' "
+                    + " AND ont_mapping_version.operator <> 'system')";
+
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
     private final PlatformRevisionMapper revisionMapper;
@@ -330,6 +342,23 @@ public class OntologyRepository {
         return value != null && value > 0;
     }
 
+    /**
+     * 启动自愈：把库里所有 {@code RUNNING} 任务置为 {@code INTERRUPTED}（P7-1）。
+     *
+     * <p><b>为什么可以「一启动就全清」</b>：本项目是单实例部署（compose 里只有一台
+     * ontology-service），进程一启动，库里不可能有别的进程正在跑的 RUNNING 任务——
+     * 剩下的必然是上一轮被 {@code System.exit} / SIGTERM 杀掉、{@code catch} 块没来得及
+     * 执行的孤儿。孤儿不清会永久挡住三条写路径（apply / 关系类型编辑 / 管理端导入），
+     * 且没有任何超时兜底。</p>
+     *
+     * <p>返回被清理的条数：&gt;0 是「上一轮有任务没跑完」的可靠信号，调用方据此判定
+     * 当前投影可能残缺并强制重建（P7-2）。</p>
+     */
+    public int markInterruptedTasks(String reason) {
+        return jdbc.update("UPDATE ont_sync_task SET status = 'INTERRUPTED', finished_at = now(), "
+                + "error = ? WHERE status = 'RUNNING'", reason);
+    }
+
     public long appendReconcileRun(String status, List<Map<String, Object>> diffs,
                                    Map<String, Object> summary) {
         Long id = jdbc.queryForObject("""
@@ -409,11 +438,7 @@ public class OntologyRepository {
 
     public void upsertMappingVersion(String sourceId, String mappingVersion, String definitionHash,
                                      String status) {
-        jdbc.update("INSERT INTO ont_mapping_version "
-                        + "(source_id, mapping_version, definition_hash, activated_at, status) "
-                        + "VALUES (?, ?, ?, now(), ?) "
-                        + "ON CONFLICT (source_id, mapping_version) DO UPDATE SET status = EXCLUDED.status",
-                sourceId, mappingVersion, definitionHash, status);
+        upsertMappingVersion(sourceId, mappingVersion, definitionHash, status, null, null, null);
     }
 
     public void upsertModelDef(String defKey, String defType, Object content, String mappingVersion) {
@@ -427,6 +452,148 @@ public class OntologyRepository {
     public List<Map<String, Object>> mappingVersions(String sourceId) {
         return jdbc.queryForList("SELECT * FROM ont_mapping_version WHERE source_id = ? "
                 + "ORDER BY activated_at DESC", sourceId);
+    }
+
+    // ── 在线编辑关系类型：版本表扩展（07 增量设计 §5.2 / S1）───────────────
+
+    /** 带来源与操作人的版本登记重载；既有 4 参方法保持不变（内部转调本方法并传 null）。 */
+    public void upsertMappingVersion(String sourceId, String mappingVersion, String definitionHash,
+                                     String status, String operator, String note,
+                                     String definitionSource) {
+        // 署名保护：行上已有人写的 operator/note 时原样保留，只更新状态与哈希。
+        // 这样「保存草稿（人）→ 启动激活（system）」不会把人名冲掉。
+        jdbc.update("INSERT INTO ont_mapping_version "
+                        + "(source_id, mapping_version, definition_hash, activated_at, status, "
+                        + " operator, note, definition_source) "
+                        + "VALUES (?, ?, ?, now(), ?, ?, ?, ?) "
+                        + "ON CONFLICT (source_id, mapping_version) DO UPDATE SET "
+                        + "status = EXCLUDED.status, "
+                        + "definition_hash = EXCLUDED.definition_hash, "
+                        + "operator = CASE WHEN " + HUMAN_SIGNATURE
+                        + "     THEN ont_mapping_version.operator "
+                        + "     ELSE COALESCE(EXCLUDED.operator, ont_mapping_version.operator) END, "
+                        + "note = CASE WHEN " + HUMAN_SIGNATURE
+                        + "     THEN ont_mapping_version.note "
+                        + "     ELSE COALESCE(EXCLUDED.note, ont_mapping_version.note) END, "
+                        + "definition_source = COALESCE(EXCLUDED.definition_source, "
+                        + "    ont_mapping_version.definition_source)",
+                sourceId, mappingVersion, definitionHash, status, operator, note, definitionSource);
+    }
+
+    /**
+     * 保存草稿（含「恢复基线」）时登记 PENDING 版本（07 增量设计 §6 + P6 缺陷修复）。
+     *
+     * <p>与 {@link #upsertMappingVersion} 的关键差异：<b>本次请求的 operator/note 覆盖旧值</b>
+     * ——同一份草稿被两个人先后保存时，署名应该是最新那个人的；同一版本号重复保存仍然
+     * 只占一行（唯一键 {@code (source_id, mapping_version)}），不会堆出一堆 PENDING。</p>
+     *
+     * <p>特例：目标版本恰好就是当前 ACTIVE 版本（例如「改完又改回去」或「恢复基线时本来
+     * 就运行在基线上」）时保持 ACTIVE 不变——否则会出现「一行 ACTIVE 都没有」的空窗，
+     * 让乐观版本闸门与 {@code /model/versions} 都读不到生效版本。</p>
+     */
+    public void markPendingMappingVersion(String sourceId, String mappingVersion, String definitionHash,
+                                          String operator, String note, String definitionSource) {
+        jdbc.update("INSERT INTO ont_mapping_version "
+                        + "(source_id, mapping_version, definition_hash, activated_at, status, "
+                        + " operator, note, definition_source) "
+                        + "VALUES (?, ?, ?, now(), 'PENDING', ?, ?, ?) "
+                        + "ON CONFLICT (source_id, mapping_version) DO UPDATE SET "
+                        + "definition_hash = EXCLUDED.definition_hash, "
+                        + "activated_at = now(), "
+                        + "status = CASE WHEN ont_mapping_version.status = 'ACTIVE' "
+                        + "              THEN 'ACTIVE' ELSE 'PENDING' END, "
+                        + "operator = COALESCE(EXCLUDED.operator, ont_mapping_version.operator), "
+                        + "note = COALESCE(EXCLUDED.note, ont_mapping_version.note), "
+                        + "definition_source = COALESCE(EXCLUDED.definition_source, "
+                        + "    ont_mapping_version.definition_source)",
+                sourceId, mappingVersion, definitionHash, operator, note, definitionSource);
+    }
+
+    /** 单条版本行（按唯一键查），启动激活时用来判断「这一版当初是谁保存的」。 */
+    public Map<String, Object> mappingVersionRow(String sourceId, String mappingVersion) {
+        if (mappingVersion == null || mappingVersion.isBlank()) {
+            return Map.of();
+        }
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT * FROM ont_mapping_version WHERE source_id = ? AND mapping_version = ?",
+                sourceId, mappingVersion);
+        return rows.isEmpty() ? Map.of() : rows.get(0);
+    }
+
+    /** 带来源与操作人的模型定义落库重载；`ont_model_def` 仍只由启动登记写入生效内容。 */
+    public void upsertModelDef(String defKey, String defType, Object content, String mappingVersion,
+                               String operator, String note, String definitionSource) {
+        jdbc.update("INSERT INTO ont_model_def (def_key, def_type, content, mapping_version, "
+                        + "updated_at, operator, note, definition_source) "
+                        + "VALUES (?, ?, ?::jsonb, ?, now(), ?, ?, ?) "
+                        + "ON CONFLICT (def_key) DO UPDATE SET content = EXCLUDED.content, "
+                        + "mapping_version = EXCLUDED.mapping_version, updated_at = now(), "
+                        + "operator = COALESCE(EXCLUDED.operator, ont_model_def.operator), "
+                        + "note = COALESCE(EXCLUDED.note, ont_model_def.note), "
+                        + "definition_source = COALESCE(EXCLUDED.definition_source, "
+                        + "    ont_model_def.definition_source)",
+                defKey, defType, json(content), mappingVersion, operator, note, definitionSource);
+    }
+
+    /**
+     * 按版本留存一份模型定义内容（{@code def_key = <type>@<mappingVersion>}）。
+     *
+     * <p>为什么不能复用 {@link #upsertModelDef}：{@code def_key} 是主键，直接用
+     * {@code relation-types} 做 key 会让新版本覆盖掉上一版内容，导致「按版本号回看
+     * 那一版长什么样」永远只能看到最后一版。这里把版本号拼进 key，并<b>只插不改</b>
+     * （同一版本的内容由内容哈希决定，必然相同，重复启动时 {@code DO NOTHING} 即可）。</p>
+     */
+    public void insertModelDefVersion(String defKey, String defType, Object content,
+                                      String mappingVersion, String operator, String note,
+                                      String definitionSource) {
+        jdbc.update("INSERT INTO ont_model_def (def_key, def_type, content, mapping_version, "
+                        + "updated_at, operator, note, definition_source) "
+                        + "VALUES (?, ?, ?::jsonb, ?, now(), ?, ?, ?) "
+                        + "ON CONFLICT (def_key) DO NOTHING",
+                defKey, defType, json(content), mappingVersion, operator, note, definitionSource);
+    }
+
+    /** 当前生效（status=ACTIVE）的版本行；无记录返回空 Map（首次启动）。 */
+    public Map<String, Object> activeMappingVersion(String sourceId) {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT * FROM ont_mapping_version WHERE source_id = ? AND status = 'ACTIVE' "
+                        + "ORDER BY activated_at DESC, mapping_version DESC LIMIT 1", sourceId);
+        return rows.isEmpty() ? Map.of() : rows.get(0);
+    }
+
+    /** 最新的待生效（status=PENDING）草稿行；无草稿返回空 Map。 */
+    public Map<String, Object> latestPendingMappingVersion(String sourceId) {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT * FROM ont_mapping_version WHERE source_id = ? AND status = 'PENDING' "
+                        + "ORDER BY activated_at DESC, mapping_version DESC LIMIT 1", sourceId);
+        return rows.isEmpty() ? Map.of() : rows.get(0);
+    }
+
+    /** 把除 keepVersion 之外的 ACTIVE 行标记为 SUPERSEDED（版本切换时调用）。 */
+    public int supersedeOtherActive(String sourceId, String keepVersion) {
+        return jdbc.update("UPDATE ont_mapping_version SET status = 'SUPERSEDED' "
+                + "WHERE source_id = ? AND status = 'ACTIVE' AND mapping_version <> ?",
+                sourceId, keepVersion == null ? "" : keepVersion);
+    }
+
+    /** 把除 keepVersion 之外的 PENDING 草稿标记为 SUPERSEDED（草稿只有最新一份）。 */
+    public int supersedeOtherPending(String sourceId, String keepVersion) {
+        return jdbc.update("UPDATE ont_mapping_version SET status = 'SUPERSEDED' "
+                + "WHERE source_id = ? AND status = 'PENDING' AND mapping_version <> ?",
+                sourceId, keepVersion == null ? "" : keepVersion);
+    }
+
+    /** 某关系类型在投影里的实例数（删除前的影响提示用）。 */
+    public long countRelationsByType(String relationType) {
+        Long value = jdbc.queryForObject(
+                "SELECT count(*) FROM ont_relation WHERE relation_type = ?", Long.class, relationType);
+        return value == null ? 0L : value;
+    }
+
+    /** 模型定义（生效内容）版本列表，供管理页展示定义来源。 */
+    public List<Map<String, Object>> modelDefVersions() {
+        return jdbc.queryForList("SELECT def_key, def_type, mapping_version, updated_at, operator, "
+                + "note, definition_source FROM ont_model_def ORDER BY def_key");
     }
 
     // ── 查询侧 ──────────────────────────────────────────────────────────────

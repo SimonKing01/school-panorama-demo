@@ -130,6 +130,17 @@ public class JdbcProjectionStore implements ProjectionStore {
     }
 
     @Override
+    public List<RelationInstance> activeRelationsFrom(String globalId) {
+        // includeInactive=false：只取当前有效关系，已结束的关系不参与「新增/解除」差集计算。
+        return repository.relationsFrom(globalId, false);
+    }
+
+    @Override
+    public List<RelationInstance> activeRelationsTo(String globalId) {
+        return repository.relationsTo(globalId, false);
+    }
+
+    @Override
     public long changeHistoryCount() {
         return repository.changeHistoryCount();
     }

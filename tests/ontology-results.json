@@ -1,0 +1,1278 @@
+{
+  "time": "2026-11-16 13:11:09",
+  "bases": {
+    "bizApi": "http://127.0.0.1:18080/api",
+    "bizWeb": "http://127.0.0.1:5180",
+    "ontologyApi": "http://127.0.0.1:18090",
+    "ontologyWeb": "http://127.0.0.1:5181"
+  },
+  "meta": {
+    "mode": "--all（全部自动项）",
+    "selected": [
+      "cross_system",
+      "revision_contract",
+      "source_status_contract",
+      "offline_writes",
+      "after_recovery",
+      "source_unavailable",
+      "sync_dup_event",
+      "sync_stale_event",
+      "admin_retry",
+      "sync_midway_before",
+      "sync_midway_after",
+      "sync_import_during_change",
+      "sync_delete_cleanup",
+      "sync_reconcile_fix",
+      "classroom_type",
+      "classroom_zero_diff",
+      "source_traceability",
+      "rebuild_consistency",
+      "dynamic_no_write",
+      "dynamic_after_clock",
+      "regression_persistence",
+      "business_regression"
+    ],
+    "phases": []
+  },
+  "summary": {
+    "total": 154,
+    "passed": 141,
+    "failed": 0,
+    "skipped": 13,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "item": "前置：原业务恢复初始演示现场且底座已同步",
+      "status": "passed",
+      "passed": true,
+      "detail": "POST /api/demo/reset 后等待 /sources/status = SYNCED",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "调课前授课安排对象详情可读（旧教师 张明远）",
+      "status": "passed",
+      "passed": true,
+      "detail": "属性字段=['className', 'classroomName', 'code', 'courseName', 'endTime', 'lessonDate', 'periodName', 'startTime', 'status', 'studentCount', 'teacherName', 'version']",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "原业务调课提交成功（业务事务不等待底座）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200，提交耗时 20ms，revision=236",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "提交返回的新课表为 陈思琪 / ROM-06 / 15:30-16:15",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classro",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "已打开视角可查到新状态：对象详情",
+      "status": "passed",
+      "passed": true,
+      "detail": "首次可见 0.017s",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "已打开视角可查到新状态：关系列表",
+      "status": "passed",
+      "passed": true,
+      "detail": "首次可见 0.023s",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "已打开视角可查到新状态：关系图",
+      "status": "passed",
+      "passed": true,
+      "detail": "首次可见 0.690s",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "已打开视角可查到新状态：变化记录",
+      "status": "passed",
+      "passed": true,
+      "detail": "首次可见 0.069s",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "从业务提交成功到四视角全部可查 ≤5 秒（记录真实耗时与条件）",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"perViewSec\": {\"对象详情\": 0.017, \"关系列表\": 0.023, \"变化记录\": 0.069, \"关系图\": 0.69}, \"allViewsSec\": 0.69, \"commitLatencyMs\": 20, \"pollIntervalSec\": 0.3, \"condition\": \"本地无故障 / 直连 127.0.0.1 / 轮询间隔 0.3s\"}",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "关系图可见新关系建立与旧关系结束",
+      "status": "passed",
+      "passed": true,
+      "detail": "edges=8（其中有效 4 条）, 新边(→gid:school-panorama:teacher:5)=True, 旧边(→gid:school-panorama:teacher:1 已结束)=True",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "旧老师与新老师两侧都能查到同一次关系变化历史",
+      "status": "passed",
+      "passed": true,
+      "detail": "旧侧=39 条 / 新侧=40 条 / 共同 changeId=[4, 5, 6, 7, 9]",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "变化与影响区分 SELF_CHANGED / DERIVED_RELATED（不把邻接对象全标为已改变）",
+      "status": "passed",
+      "passed": true,
+      "detail": "抽查 roles=['DERIVED_RELATED', 'SELF_CHANGED']",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "页面刷新失败后自动重试、不因提前记住新版本号停留旧数据",
+      "status": "skipped",
+      "passed": null,
+      "detail": "需前端已打开视角 + 注入一次刷新失败，由 tests/ontology_browser.mjs 覆盖；本脚本只校验接口侧 /revision 协议（见 verify_revision_contract）",
+      "group": "验收一·跨系统变化",
+      "case": "cross_system"
+    },
+    {
+      "item": "/revision 返回刷新协议所需五字段",
+      "status": "passed",
+      "passed": true,
+      "detail": "缺失=[]，实际={\"revision\": 211, \"demoTime\": \"2026-11-16T10:15:00\", \"lastSuccessSyncAt\": \"2026-11-16T13:10:46\", \"pendingCount\": 0, \"sourceUp\": true}",
+      "group": "验收一·跨系统变化",
+      "case": "revision_contract"
+    },
+    {
+      "item": "ont_platform_revision（底座短轮询版本）单调递增、不回退",
+      "status": "passed",
+      "passed": true,
+      "detail": "211 -> 211",
+      "group": "验收一·跨系统变化",
+      "case": "revision_contract"
+    },
+    {
+      "item": "两类时间字段分离（demoTime 与 lastSuccessSyncAt 独立存在）",
+      "status": "passed",
+      "passed": true,
+      "detail": "demoTime=2026-11-16T10:15:00 / lastSuccessSyncAt=2026-11-16T13:10:46",
+      "group": "验收一·跨系统变化",
+      "case": "revision_contract"
+    },
+    {
+      "item": "三处 revision 语义分离并分别命名：业务 system_revision / ont_platform_revision / 业务水位 snapshotRevision·currentSourceRevision",
+      "status": "passed",
+      "passed": true,
+      "detail": "业务 system_revision=236（事件/对象水位）；ont_platform_revision=211（/revision，仅前端短轮询）；snapshotRevision=236 / currentSourceRevision=236（/sources/status，业务水位）",
+      "group": "验收一·跨系统变化",
+      "case": "revision_contract"
+    },
+    {
+      "item": "/sources/status 可读且含五态/进度/映射版本字段",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"sourceId\": \"school-panorama\", \"sourceUp\": true, \"status\": \"SYNCED\", \"statusLabel\": \"已同步（新鲜）\", \"lastSuccessSyncAt\": \"2026-11-16T13:10:46\", \"demoTime\": \"2026-11-16T10:15:00\", \"snapshotRevision\": 236, \"currentSourceRevision\": 236, \"pendingCount\": 0, \"processingCount\": 0, \"errorCount\": 0, \"deadCount\":",
+      "group": "验收二·独立运行与恢复",
+      "case": "source_status_contract"
+    },
+    {
+      "item": "status 取值在五态枚举内",
+      "status": "passed",
+      "passed": true,
+      "detail": "status=SYNCED / label=已同步（新鲜）",
+      "group": "验收二·独立运行与恢复",
+      "case": "source_status_contract"
+    },
+    {
+      "item": "演示业务时间与同步处理时间是两个独立字段（不得混用）",
+      "status": "passed",
+      "passed": true,
+      "detail": "demoTime=2026-11-16T10:15:00 / lastSuccessSyncAt=2026-11-16T13:10:46",
+      "group": "验收二·独立运行与恢复",
+      "case": "source_status_contract"
+    },
+    {
+      "item": "处理进度/待处理/错误/死信计数可观测",
+      "status": "passed",
+      "passed": true,
+      "detail": "pending=0 processing=0 error=0 dead=0",
+      "group": "验收二·独立运行与恢复",
+      "case": "source_status_contract"
+    },
+    {
+      "item": "/sources/status 的 snapshotRevision / currentSourceRevision 使用业务 system_revision 水位（不是 ont_platform_revision）",
+      "status": "passed",
+      "passed": true,
+      "detail": "业务 system_revision=236 / snapshotRevision=236 / currentSourceRevision=236；前端短轮询的 ont_platform_revision 见 /revision，两者不得混用",
+      "group": "验收二·独立运行与恢复",
+      "case": "source_status_contract"
+    },
+    {
+      "item": "构造事件带 payload.sourceTable / sourcePk（可解析出受影响 globalId）",
+      "status": "passed",
+      "passed": true,
+      "detail": "sourceTable=lesson_sessions / sourcePk=3",
+      "group": "验收三·同步正确性",
+      "case": "sync_dup_event"
+    },
+    {
+      "item": "首次投递被持久化（ack=true, persisted=true）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200, ack=True, persisted=True, skipped=None, error=None",
+      "group": "验收三·同步正确性",
+      "case": "sync_dup_event"
+    },
+    {
+      "item": "第 2 次投递返回幂等跳过（ack=true / DUPLICATE）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200, ack=True, persisted=False, skipped=DUPLICATE, error=None",
+      "group": "验收三·同步正确性",
+      "case": "sync_dup_event"
+    },
+    {
+      "item": "第 3 次投递同样幂等（ack=true / DUPLICATE）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200, ack=True, persisted=False, skipped=DUPLICATE, error=None",
+      "group": "验收三·同步正确性",
+      "case": "sync_dup_event"
+    },
+    {
+      "item": "重复投递未追加变更历史（总数最多 +1）",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes total 46 -> 47",
+      "group": "验收三·同步正确性",
+      "case": "sync_dup_event"
+    },
+    {
+      "item": "同一 eventId 对应的变化记录不重复（≤1 条）",
+      "status": "passed",
+      "passed": true,
+      "detail": "命中 1 条（eventId=qa-dup-2212aa76d1ca46e08d5070f6a6b861fe）",
+      "group": "验收三·同步正确性",
+      "case": "sync_dup_event"
+    },
+    {
+      "item": "重复投递未产生重复对象/关系（overview counts 稳定）",
+      "status": "passed",
+      "passed": true,
+      "detail": "objects=95 relations=329",
+      "group": "验收三·同步正确性",
+      "case": "sync_dup_event"
+    },
+    {
+      "item": "收尾：重复投递 后由原业务 reset 恢复源/投影一致（保持可重复执行）",
+      "status": "passed",
+      "passed": true,
+      "detail": "POST /api/demo/reset HTTP 200，底座 SYNCED=True",
+      "group": "验收三·同步正确性",
+      "case": "sync_dup_event"
+    },
+    {
+      "item": "hi/lo 两条事件均带 payload.sourceTable / sourcePk，且解析出同一个 globalId（STALE 判定前提，防止「无对象变化」假通过）",
+      "status": "passed",
+      "passed": true,
+      "detail": "hi=lesson_sessions:3 / lo=lesson_sessions:3 / hi.revision=239 > lo.revision=238（均为业务 system_revision）",
+      "group": "验收三·同步正确性",
+      "case": "sync_stale_event"
+    },
+    {
+      "item": "较新 revision 事件被持久化（ack=true, persisted=true）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200, ack=True, persisted=True, skipped=None, error=None",
+      "group": "验收三·同步正确性",
+      "case": "sync_stale_event"
+    },
+    {
+      "item": "较新事件确实改变了对象投影（非仅 bump 平台版本的「无对象变化」）",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"globalId\": \"gid:school-panorama:lessonSession:3\", \"type\": \"lessonSession\", \"title\": \"LS-003 · 语文 · 初一（1）班\", \"deleted\": false, \"deletedHint\": null, \"mappingVersion\": \"school-panorama:c159e7192cb5\", \"attributes\": [{\"name",
+      "group": "验收三·同步正确性",
+      "case": "sync_stale_event"
+    },
+    {
+      "item": "较旧 revision 事件被识别为 STALE 并丢弃（ack=true / STALE、不落库）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200, ack=True, persisted=False, skipped=STALE, error=None",
+      "group": "验收三·同步正确性",
+      "case": "sync_stale_event"
+    },
+    {
+      "item": "最终状态 = 较新事件（陈思琪 / 15:30），未被旧事件覆盖或回退",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"globalId\": \"gid:school-panorama:lessonSession:3\", \"type\": \"lessonSession\", \"title\": \"LS-003 · 语文 · 初一（1）班\", \"deleted\": false, \"deletedHint\": null, \"mappingVersion\": \"school-panorama:c159e7192cb5\", \"attributes\": [{\"name\": \"code\", \"displayName\": \"安排编号\", \"value",
+      "group": "验收三·同步正确性",
+      "case": "sync_stale_event"
+    },
+    {
+      "item": "旧事件晚到未追加伪造的业务变化历史",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes total 48 -> 48",
+      "group": "验收三·同步正确性",
+      "case": "sync_stale_event"
+    },
+    {
+      "item": "收尾：乱序事件 后由原业务 reset 恢复源/投影一致（保持可重复执行）",
+      "status": "passed",
+      "passed": true,
+      "detail": "POST /api/demo/reset HTTP 200，底座 SYNCED=True",
+      "group": "验收三·同步正确性",
+      "case": "sync_stale_event"
+    },
+    {
+      "item": "没有失败事件时：重试已投递/不存在的事件被明确拒绝（不误报成功）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 / code=NOT_FOUND（该事件原状态=DELIVERED，outbox 共 50 条，FAILED/DEAD=0）",
+      "group": "验收三·同步正确性",
+      "case": "admin_retry"
+    },
+    {
+      "item": "底座 /admin/retry 重放失败事件并幂等恢复",
+      "status": "skipped",
+      "passed": null,
+      "detail": "当前无 FAILED/DEAD 事件（outbox 全部 DELIVERED），无法构造重放前置；需先制造失败事件后重跑：先停 backend 再调一次调课提交，或执行 --case source_unavailable 后在同一停机窗口重跑 --case admin_retry",
+      "group": "验收三·同步正确性",
+      "case": "admin_retry"
+    },
+    {
+      "item": "原业务不可用时 /admin/retry 返回 SOURCE_UNAVAILABLE + 中文错误",
+      "status": "skipped",
+      "passed": null,
+      "detail": "sourceUp 仍为 True，未构造来源不可用窗口；请主理人停止原业务服务(backend)后在同一停机窗口重跑 --case admin_retry（与 --case source_unavailable 共用）",
+      "group": "验收三·同步正确性",
+      "case": "admin_retry"
+    },
+    {
+      "item": "全量导入已启动并返回 taskId",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 / code=OK / taskId=51",
+      "group": "验收三·同步正确性",
+      "case": "sync_import_during_change"
+    },
+    {
+      "item": "导入进行中发起的合法调课提交成功",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200",
+      "group": "验收三·同步正确性",
+      "case": "sync_import_during_change"
+    },
+    {
+      "item": "「导入期间」窗口成立的证据",
+      "status": "skipped",
+      "passed": null,
+      "detail": "取进度时导入已是 SUCCESS，未能构造窗口；建议主理人加大源数据量或限速后重跑。下列「最终状态/不遗漏」断言仍照常执行。",
+      "group": "验收三·同步正确性",
+      "case": "sync_import_during_change"
+    },
+    {
+      "item": "全量导入任务结束（可查看进度，SUCCESS/FAILED 明确）",
+      "status": "passed",
+      "passed": true,
+      "detail": "status=SUCCESS，等待 0.0s，进度数据=True",
+      "group": "验收三·同步正确性",
+      "case": "sync_import_during_change"
+    },
+    {
+      "item": "导入结束后最终状态 = 最新业务状态（修改未被旧快照覆盖）",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"globalId\": \"gid:school-panorama:lessonSession:3\", \"type\": \"lessonSession\", \"title\": \"LS-003 · 语文 · 初一（1）班\", \"deleted\": false, \"deletedHint\": null, \"mappingVersion\": \"school-panorama:c159e7192cb5\", \"attributes\": [{\"name\": \"code\", \"displayName\": \"安排编号\", \"value",
+      "group": "验收三·同步正确性",
+      "case": "sync_import_during_change"
+    },
+    {
+      "item": "导入期间发生的调课变化记录不遗漏",
+      "status": "passed",
+      "passed": true,
+      "detail": "底座变化总数=33",
+      "group": "验收三·同步正确性",
+      "case": "sync_import_during_change"
+    },
+    {
+      "item": "连续两次全量导入：对象数/关系数不变（不产生重复）",
+      "status": "passed",
+      "passed": true,
+      "detail": "第一次 objects=95 relations=337 / 第二次 objects=95 relations=337（本用例调课前的旧基线 objects=95 relations=329，差额=本次调课的业务影响，不计入重复判定）",
+      "group": "验收三·同步正确性",
+      "case": "sync_import_during_change"
+    },
+    {
+      "item": "重复导入后 globalId 稳定（授课安排仍可定位）",
+      "status": "passed",
+      "passed": true,
+      "detail": "gid:school-panorama:lessonSession:3",
+      "group": "验收三·同步正确性",
+      "case": "sync_import_during_change"
+    },
+    {
+      "item": "收尾：导入期修改 后由原业务 reset 恢复源/投影一致（保持可重复执行）",
+      "status": "passed",
+      "passed": true,
+      "detail": "POST /api/demo/reset HTTP 200，底座 SYNCED=True",
+      "group": "验收三·同步正确性",
+      "case": "sync_import_during_change"
+    },
+    {
+      "item": "前置：重建当前投影，保证被删对象处于未删除状态（可重复执行）",
+      "status": "passed",
+      "passed": true,
+      "detail": "POST /api/ontology/rebuild 后等待投影可用",
+      "group": "验收三·同步正确性",
+      "case": "sync_delete_cleanup"
+    },
+    {
+      "item": "DELETE 事件带 payload.sourceTable / sourcePk + tombstone（墓碑化定位前提）",
+      "status": "passed",
+      "passed": true,
+      "detail": "payload={\"sourceTable\": \"lesson_sessions\", \"sourcePk\": \"9\", \"tombstone\": true}",
+      "group": "验收三·同步正确性",
+      "case": "sync_delete_cleanup"
+    },
+    {
+      "item": "DELETE 事件直接经 POST /internal/events 注入并被持久化（无需查业务 Outbox）",
+      "status": "passed",
+      "passed": true,
+      "detail": "eventId=qa-delete-eea810f62f614cd896a6c7b6d9c5e59a / HTTP 200, ack=True, persisted=True, skipped=None, error=None",
+      "group": "验收三·同步正确性",
+      "case": "sync_delete_cleanup"
+    },
+    {
+      "item": "被删除对象已墓碑化 / 不再作为有效对象返回",
+      "status": "passed",
+      "passed": true,
+      "detail": "globalId=gid:school-panorama:lessonSession:9 / HTTP 200 / code=OK / deleted=True",
+      "group": "验收三·同步正确性",
+      "case": "sync_delete_cleanup"
+    },
+    {
+      "item": "被删除对象的有效关系全部失效（无悬挂关系）",
+      "status": "passed",
+      "passed": true,
+      "detail": "active 关系数=0 / 总关系数=4 / 墓碑生效等待 0.0s",
+      "group": "验收三·同步正确性",
+      "case": "sync_delete_cleanup"
+    },
+    {
+      "item": "删除/关系失效有可解释的变化记录",
+      "status": "passed",
+      "passed": true,
+      "detail": "变化记录数=5（由 DELETE 事件产生，非对账伪造）",
+      "group": "验收三·同步正确性",
+      "case": "sync_delete_cleanup"
+    },
+    {
+      "item": "收尾：再次重建当前投影，恢复被墓碑对象（不污染后续用例）",
+      "status": "passed",
+      "passed": true,
+      "detail": "POST /api/ontology/rebuild；源记录仍在，重建会恢复该对象",
+      "group": "验收三·同步正确性",
+      "case": "sync_delete_cleanup"
+    },
+    {
+      "item": "模型定义包含后接入的 classroom 对象类型（含显示名/可搜索字段/来源映射）",
+      "status": "passed",
+      "passed": true,
+      "detail": "已注册类型=['school', 'class', 'student', 'teacher', 'course', 'lessonSession', 'classroom']",
+      "group": "验收四·新增对象类型（教室）",
+      "case": "classroom_type"
+    },
+    {
+      "item": "教室类型由同一套模型定义驱动（含 searchableFields / sourceMapping）",
+      "status": "passed",
+      "passed": true,
+      "detail": "searchable=['code', 'name'] / sourceMapping={'sourceId': 'school-panorama', 'sourceTable': 'classrooms', 'sourcePk': 'id'}",
+      "group": "验收四·新增对象类型（教室）",
+      "case": "classroom_type"
+    },
+    {
+      "item": "教室可被全局搜索直达（跨所有已接入类型命中）",
+      "status": "passed",
+      "passed": true,
+      "detail": "关键词=明理楼 101 / 命中 1 条 / 总结果 1 条",
+      "group": "验收四·新增对象类型（教室）",
+      "case": "classroom_type"
+    },
+    {
+      "item": "教室可打开同一套通用对象详情（含来源系统/记录/映射信息）",
+      "status": "passed",
+      "passed": true,
+      "detail": "globalId=gid:school-panorama:classroom:1 / 属性字段=['building', 'capacity', 'code', 'name', 'roomType', 'schoolName', 'sessionCount', 'usedPeriods']",
+      "group": "验收四·新增对象类型（教室）",
+      "case": "classroom_type"
+    },
+    {
+      "item": "教室的正/反向关联对象可查",
+      "status": "passed",
+      "passed": true,
+      "detail": "关系数=5",
+      "group": "验收四·新增对象类型（教室）",
+      "case": "classroom_type"
+    },
+    {
+      "item": "教室可在关系图中展开（1 层 + 节点上限）",
+      "status": "passed",
+      "passed": true,
+      "detail": "nodes=6 / edges=5 / truncated=False",
+      "group": "验收四·新增对象类型（教室）",
+      "case": "classroom_type"
+    },
+    {
+      "item": "教室对象列表由通用探索器提供（无教室专用页面）",
+      "status": "passed",
+      "passed": true,
+      "detail": "total=11",
+      "group": "验收四·新增对象类型（教室）",
+      "case": "classroom_type"
+    },
+    {
+      "item": "授课安排 LS-003：详情可追溯到 sourceTable / sourcePk / mappingVersion",
+      "status": "passed",
+      "passed": true,
+      "detail": "source={\"sourceId\": \"school-panorama\", \"sourceTable\": \"lesson_sessions\", \"sourcePk\": \"3\", \"sourceCode\": \"LS-003\", \"sourceHash\": \"01381821ded46f5dc5867cf971a0b59777cdb9bcde450dcf01a01020e3cd983a\", \"mappingVersion\": \"school-panor",
+      "group": "验收五·来源追溯与可重建",
+      "case": "source_traceability"
+    },
+    {
+      "item": "授课安排 LS-003：属性区分 SOURCE / DERIVED 来源，动态结果依赖 queryTime",
+      "status": "passed",
+      "passed": true,
+      "detail": "origins=['DERIVED', 'SOURCE'] / dynamicResults=3",
+      "group": "验收五·来源追溯与可重建",
+      "case": "source_traceability"
+    },
+    {
+      "item": "教师 陈思琪：详情可追溯到 sourceTable / sourcePk / mappingVersion",
+      "status": "passed",
+      "passed": true,
+      "detail": "source={\"sourceId\": \"school-panorama\", \"sourceTable\": \"teachers\", \"sourcePk\": \"5\", \"sourceCode\": \"TCH-005\", \"sourceHash\": \"b1dc87591b5fe75485e4d95533f81017b705ac1b931b1c640ca7a72e030b446e\", \"mappingVersion\": \"school-panorama:c1",
+      "group": "验收五·来源追溯与可重建",
+      "case": "source_traceability"
+    },
+    {
+      "item": "教师 陈思琪：属性区分 SOURCE / DERIVED 来源，动态结果依赖 queryTime",
+      "status": "passed",
+      "passed": true,
+      "detail": "origins=['DERIVED', 'SOURCE'] / dynamicResults=2",
+      "group": "验收五·来源追溯与可重建",
+      "case": "source_traceability"
+    },
+    {
+      "item": "学生 陈一诺：详情可追溯到 sourceTable / sourcePk / mappingVersion",
+      "status": "passed",
+      "passed": true,
+      "detail": "source={\"sourceId\": \"school-panorama\", \"sourceTable\": \"students\", \"sourcePk\": \"1\", \"sourceCode\": \"STU-0001\", \"sourceHash\": \"9100856086ea506b0ee77b9f69cbd39cb53ce3987c728175c494a2b9c9b906c9\", \"mappingVersion\": \"school-panorama:c",
+      "group": "验收五·来源追溯与可重建",
+      "case": "source_traceability"
+    },
+    {
+      "item": "学生 陈一诺：属性区分 SOURCE / DERIVED 来源，动态结果依赖 queryTime",
+      "status": "passed",
+      "passed": true,
+      "detail": "origins=['DERIVED', 'SOURCE'] / dynamicResults=2",
+      "group": "验收五·来源追溯与可重建",
+      "case": "source_traceability"
+    },
+    {
+      "item": "关系实例可解释成因（reason）+ 来源原始记录 + 映射版本",
+      "status": "passed",
+      "passed": true,
+      "detail": "4/4 条含生成依据",
+      "group": "验收五·来源追溯与可重建",
+      "case": "source_traceability"
+    },
+    {
+      "item": "映射定义可查：数据源 / 对象映射 / 生效版本 / Provider / Resolver",
+      "status": "passed",
+      "passed": true,
+      "detail": "keys=['dataSources', 'objectMappings', 'providers', 'registry', 'resolvers', 'versions']",
+      "group": "验收五·来源追溯与可重建",
+      "case": "source_traceability"
+    },
+    {
+      "item": "稳定 ID 规则含 sourceId（不同来源同主键不自动合并）",
+      "status": "passed",
+      "passed": true,
+      "detail": "objectMappings 首条={\"objectType\": \"school\", \"sourceTable\": \"schools\", \"fieldMappings\": [{\"target\": \"code\", \"source\": \"code\", \"transform\": null}, {\"target\": \"name\", \"source\": \"name\", \"transform\": null}, {\"target\": \"address\", \"source\": \"addr",
+      "group": "验收五·来源追溯与可重建",
+      "case": "source_traceability"
+    },
+    {
+      "item": "重建前快照可采集（对象 95 个 / 类型 7 类 / 关系 4 条）",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes=50 tasks=4 revision=229",
+      "group": "验收五·来源追溯与可重建",
+      "case": "rebuild_consistency"
+    },
+    {
+      "item": "重建任务已启动且 scope=CURRENT_PROJECTION_ONLY（仅清当前投影）",
+      "status": "passed",
+      "passed": true,
+      "detail": "scope=CURRENT_PROJECTION_ONLY / truncated=['ont_object', 'ont_relation', 'ont_source_ref', 'ont_object_version'] / preserved=['ont_change_history', 'ont_change_impact', 'ont_sync_task', 'ont_processed_event']",
+      "group": "验收五·来源追溯与可重建",
+      "case": "rebuild_consistency"
+    },
+    {
+      "item": "重建任务完成且当前投影重新可用",
+      "status": "passed",
+      "passed": true,
+      "detail": "等待 0.0s",
+      "group": "验收五·来源追溯与可重建",
+      "case": "rebuild_consistency"
+    },
+    {
+      "item": "重建前后对象 globalId 集合完全一致（身份稳定、跨源不合并）",
+      "status": "passed",
+      "passed": true,
+      "detail": "before=95 / after=95",
+      "group": "验收五·来源追溯与可重建",
+      "case": "rebuild_consistency"
+    },
+    {
+      "item": "重建前后当前属性一致",
+      "status": "passed",
+      "passed": true,
+      "detail": "12 vs 12 个属性；重建后属性字段=['className', 'classroomName', 'code', 'courseName', 'endTime', 'lessonDate', 'periodName', 'startTime', 'status', 'studentCount', 'teacherName', 'version']",
+      "group": "验收五·来源追溯与可重建",
+      "case": "rebuild_consistency"
+    },
+    {
+      "item": "重建前后关系（类型/端点/有效状态）一致",
+      "status": "passed",
+      "passed": true,
+      "detail": "before=4 / after=4 条",
+      "group": "验收五·来源追溯与可重建",
+      "case": "rebuild_consistency"
+    },
+    {
+      "item": "重建后审计历史条数不减少（变更历史 / 同步任务全保留）",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes 50→50 / tasks 4→4",
+      "group": "验收五·来源追溯与可重建",
+      "case": "rebuild_consistency"
+    },
+    {
+      "item": "重建后 ont_platform_revision 只增不减",
+      "status": "passed",
+      "passed": true,
+      "detail": "229 → 230",
+      "group": "验收五·来源追溯与可重建",
+      "case": "rebuild_consistency"
+    },
+    {
+      "item": "queryTime=07:30:00：当前/下一节课动态结果正确",
+      "status": "passed",
+      "passed": true,
+      "detail": "current=null / next={\"code\": \"LS-001\", \"courseName\": \"语文\", \"className\": \"初一（1）班\", \"teacherName\": \"张明远\", \"classroomName\": \"明理楼 101\"",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_no_write"
+    },
+    {
+      "item": "queryTime=07:30:00：动态结果附可读计算依据（basis / inputs / queryTime）",
+      "status": "passed",
+      "passed": true,
+      "detail": "basis=依据演示时间 2026-11-16T07:30:00，从对象 gid:school-panorama:student:1 的两层关系取出 11 条授课安排，取满足 开始≤演示时间<结束 的最早一节；无满足条件的安排则显示空状态。",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_no_write"
+    },
+    {
+      "item": "queryTime=10:15:00：当前/下一节课动态结果正确",
+      "status": "passed",
+      "passed": true,
+      "detail": "current={\"code\": \"LS-003\", \"courseName\": \"语文\", \"className\": \"初一（1）班\", \"teacherName\": \"张明远\", \"classroomName\": \"明理楼 101\" / next={\"code\": \"LS-004\", \"courseName\": \"物理\", \"className\": \"初一（1）班\", \"teacherName\": \"赵建国\", \"classroomName\": \"实验楼 201 ",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_no_write"
+    },
+    {
+      "item": "queryTime=10:15:00：动态结果附可读计算依据（basis / inputs / queryTime）",
+      "status": "passed",
+      "passed": true,
+      "detail": "basis=依据演示时间 2026-11-16T10:15:00，从对象 gid:school-panorama:student:1 的两层关系取出 11 条授课安排，取满足 开始≤演示时间<结束 的最早一节；无满足条件的安排则显示空状态。",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_no_write"
+    },
+    {
+      "item": "queryTime=10:45:00：当前/下一节课动态结果正确",
+      "status": "passed",
+      "passed": true,
+      "detail": "current=null / next={\"code\": \"LS-004\", \"courseName\": \"物理\", \"className\": \"初一（1）班\", \"teacherName\": \"赵建国\", \"classroomName\": \"实验楼 201 ",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_no_write"
+    },
+    {
+      "item": "queryTime=10:45:00：动态结果附可读计算依据（basis / inputs / queryTime）",
+      "status": "passed",
+      "passed": true,
+      "detail": "basis=依据演示时间 2026-11-16T10:45:00，从对象 gid:school-panorama:student:1 的两层关系取出 11 条授课安排，取满足 开始≤演示时间<结束 的最早一节；无满足条件的安排则显示空状态。",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_no_write"
+    },
+    {
+      "item": "queryTime=17:00:00：当前/下一节课动态结果正确",
+      "status": "passed",
+      "passed": true,
+      "detail": "current=null / next=null",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_no_write"
+    },
+    {
+      "item": "queryTime=17:00:00：动态结果附可读计算依据（basis / inputs / queryTime）",
+      "status": "passed",
+      "passed": true,
+      "detail": "basis=依据演示时间 2026-11-16T17:00:00，从对象 gid:school-panorama:student:1 的两层关系取出 11 条授课安排，取满足 开始≤演示时间<结束 的最早一节；无满足条件的安排则显示空状态。",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_no_write"
+    },
+    {
+      "item": "四组 queryTime 期间本体平台零写入（revision 与历史条数不变）",
+      "status": "passed",
+      "passed": true,
+      "detail": "revision 231→231 / changes total 50→50；证明动态结果不依赖数据变更事件",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_no_write"
+    },
+    {
+      "item": "10:15 底座默认动态结果为课中（当前语文 / 下一节 11:00）",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"code\": \"LS-003\", \"courseName\": \"语文\", \"className\": \"初一（1）班\", \"teacherName\": \"张明远\", \"classroomName\": \"明理楼 101\", \"lessonDate\": \"2026-11-16\", ",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_after_clock"
+    },
+    {
+      "item": "原业务演示时间调整成功（产生 CLOCK 事件，不改课表）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 / demoTime=2026-11-16T17:00:00",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_after_clock"
+    },
+    {
+      "item": "改演示时间后本体平台默认动态结果随之变化（17:00 当前/下一节均为空）",
+      "status": "passed",
+      "passed": true,
+      "detail": "等待 1.3s；CLOCK 事件不产生对象属性变化",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_after_clock"
+    },
+    {
+      "item": "两类时间分离：底座 demoTime 跟随业务，lastSuccessSyncAt 为真实处理时间",
+      "status": "passed",
+      "passed": true,
+      "detail": "demoTime=2026-11-16T17:00:00 / lastSuccessSyncAt=2026-11-16T13:11:06",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "dynamic_after_clock"
+    },
+    {
+      "item": "回归·健康检查 /api/health 返回 UP",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 {'status': 'UP', 'db': 'UP', 'demoTime': '2026-11-16T10:15:00', 'revision': 250}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·元数据包含 2 所学校 / 4 个班 / 14 位教师 / 11 间教室",
+      "status": "passed",
+      "passed": true,
+      "detail": "schools=2 classes=4 teachers=14 rooms=11",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·演示时钟可读取且含快捷时间点",
+      "status": "passed",
+      "passed": true,
+      "detail": "demoTime=2026-11-16T10:15:00",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·POST /api/demo/reset 成功",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·演示时间恢复到当天 10:15",
+      "status": "passed",
+      "passed": true,
+      "detail": "2026-11-16T10:15:00",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·总览统计：2 校 / 14 教师 / 4 班 / 32 学生 / 24 节课",
+      "status": "passed",
+      "passed": true,
+      "detail": "{'schools': 2, 'teachers': 14, 'classes': 4, 'students': 32, 'courses': 8, 'classrooms': 11, 'sessionsToday': 24, 'changes': 3, 'currentLessons': 4}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·按姓名搜索到学生 陈一诺（无须进入菜单）",
+      "status": "passed",
+      "passed": true,
+      "detail": "共 1 条",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·学生当前课程为 语文 / 张明远 / 10:00 / 明理楼 101",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 1, \"teacherName\": \"张明远\", \"classroomId\": 1, \"classroomName\": \"明理楼 101\", \"lessonDate\": \"2026-11-16\", \"startTime\": \"10:00\", \"endTime\": \"10:45\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"正在上课\"}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·学生下一节课为 物理 / 赵建国 / 11:00，信息直接可见",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"id\": 4, \"code\": \"LS-004\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 4, \"courseName\": \"物理\", \"subject\": \"物理\", \"teacherId\": 4, \"teacherName\": \"赵建国\", \"classroomId\": 4, \"classroomName\": \"实验楼 201 物理实验室\", \"lessonDate\": \"2026-11-16\", \"startTime\": \"11:00\", \"endTime\": \"11:45\", \"periodName\": \"第四节\", \"studentCount\": 8, \"status\": \"即将开始\"}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·按编号 STU-0001 搜索到同一学生",
+      "status": "passed",
+      "passed": true,
+      "detail": "",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·按姓名搜索教师 张明远",
+      "status": "passed",
+      "passed": true,
+      "detail": "",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·学校筛选生效（仅云岭实验学校对象）",
+      "status": "passed",
+      "passed": true,
+      "detail": "22 条",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·07:30 上课前：无正在上课，下一节为 08:00 语文",
+      "status": "passed",
+      "passed": true,
+      "detail": "current=None next=08:00",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·10:15 课中：当前为语文，下一节 11:00，总览 4 节课同时在进行",
+      "status": "passed",
+      "passed": true,
+      "detail": "current=语文 next=11:00 ongoing=4",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·10:45 下课边界：第三节已结束、当前无课、下一节 11:00",
+      "status": "passed",
+      "passed": true,
+      "detail": "status=已结束 next=11:00",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·17:00 全部课程结束后：当前/下一节均为空，总览无进行中课程（明确空状态数据）",
+      "status": "passed",
+      "passed": true,
+      "detail": "全局列表 32 行均为空",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·跟随真实时间：演示时间随真实时钟推进",
+      "status": "passed",
+      "passed": true,
+      "detail": "2026-11-16T17:00:00 -> 2026-11-16T17:00:01",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·同步到今天：演示时间回到当天 10:15",
+      "status": "passed",
+      "passed": true,
+      "detail": "2026-11-16T10:15:00",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·同步到今天：全部授课安排日期为今天",
+      "status": "passed",
+      "passed": true,
+      "detail": "24 节",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·预览：缺少原因被拒绝",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['REASON_REQUIRED'] msg=",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·提交：缺少原因被拒绝",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['REASON_REQUIRED'] msg=调课校验未通过",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·失败后数据、变更日志、版本号均未改变：缺少原因被拒绝",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes=3/3 revision=260/260",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·预览：教师跨校被拒绝（云岭实验教师给星海一中上课）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['TEACHER_SCHOOL_MISMATCH'] msg=",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·提交：教师跨校被拒绝（云岭实验教师给星海一中上课）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['TEACHER_SCHOOL_MISMATCH'] msg=调课校验未通过",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·失败后数据、变更日志、版本号均未改变：教师跨校被拒绝（云岭实验教师给星海一中上课）",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes=3/3 revision=260/260",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·预览：教师科目不符被拒绝（数学教师教语文）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['TEACHER_SUBJECT_MISMATCH'] msg=",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·提交：教师科目不符被拒绝（数学教师教语文）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['TEACHER_SUBJECT_MISMATCH'] msg=调课校验未通过",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·失败后数据、变更日志、版本号均未改变：教师科目不符被拒绝（数学教师教语文）",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes=3/3 revision=260/260",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·预览：教师时间冲突被拒绝（吴嘉豪 10:00 已在初一（2）班）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['TEACHER_CONFLICT'] msg=",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·提交：教师时间冲突被拒绝（吴嘉豪 10:00 已在初一（2）班）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['TEACHER_CONFLICT'] msg=调课校验未通过",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·失败后数据、变更日志、版本号均未改变：教师时间冲突被拒绝（吴嘉豪 10:00 已在初一（2）班）",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes=3/3 revision=260/260",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·预览：教室时间冲突被拒绝（明理楼 102 已被占用）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['CLASSROOM_CONFLICT'] msg=",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·提交：教室时间冲突被拒绝（明理楼 102 已被占用）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['CLASSROOM_CONFLICT'] msg=调课校验未通过",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·失败后数据、变更日志、版本号均未改变：教室时间冲突被拒绝（明理楼 102 已被占用）",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes=3/3 revision=260/260",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·预览：班级时间冲突被拒绝（11:00 该班已有物理课）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 conflicts=['CLASS_CONFLICT'] msg=",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·提交：班级时间冲突被拒绝（11:00 该班已有物理课）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 400 conflicts=['CLASS_CONFLICT'] msg=调课校验未通过",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·失败后数据、变更日志、版本号均未改变：班级时间冲突被拒绝（11:00 该班已有物理课）",
+      "status": "passed",
+      "passed": true,
+      "detail": "changes=3/3 revision=260/260",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·提交前影响面板：校验通过、含差异与受影响人数",
+      "status": "passed",
+      "passed": true,
+      "detail": "diff=4 条, 受影响 8 人",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·调课提交成功（HTTP 200）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200 ",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·返回的新课表：陈思琪 / 多功能报告厅 / 15:30-16:15",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-16\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·同一事务生成变更记录（含原因、前后差异、影响）",
+      "status": "passed",
+      "passed": true,
+      "detail": "changeId=64 diff=4",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·数据版本号递增（供其他视角短轮询感知）",
+      "status": "passed",
+      "passed": true,
+      "detail": "260 -> 261",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·学生详情 读取到同一份新授课安排",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-16\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·班级详情 读取到同一份新授课安排",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-16\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·原教师课表不再包含被调走的 LS-003",
+      "status": "passed",
+      "passed": true,
+      "detail": "匹配=False",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·新教师详情 读取到同一份新授课安排",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-16\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·课表列表 读取到同一份新授课安排",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-16\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·总览今日课程 读取到同一份新授课安排",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"id\": 3, \"code\": \"LS-003\", \"schoolId\": 1, \"schoolName\": \"星海第一中学\", \"classId\": 1, \"className\": \"初一（1）班\", \"courseId\": 1, \"courseName\": \"语文\", \"subject\": \"语文\", \"teacherId\": 5, \"teacherName\": \"陈思琪\", \"classroomId\": 6, \"classroomName\": \"多功能报告厅\", \"lessonDate\": \"2026-11-16\", \"startTime\": \"15:30\", \"endTime\": \"16:15\", \"periodName\": \"第三节\", \"studentCount\": 8, \"status\": \"即将开始\"}",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·总览最近变更包含本次调课",
+      "status": "passed",
+      "passed": true,
+      "detail": "",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·变更记录列表可查看修改前后、原因、时间、受影响对象",
+      "status": "passed",
+      "passed": true,
+      "detail": "id=64",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "回归·变更详情可查看完整 diff 与影响面板",
+      "status": "passed",
+      "passed": true,
+      "detail": "diff=4",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "现有接口验收脚本完整执行（共 51 项，退出码反映失败）",
+      "status": "passed",
+      "passed": true,
+      "detail": "退出码=0；stdout 尾部=4   [通过] 变更详情可查看完整 diff 与影响面板 — diff=4  === 6. 现场保留 ===   已保留成功调课结果，等待容器重启后执行 --check-persistence 校验持久化。  合计 51 项：通过 51，失败 0 结果已写入 D:\\workbuddy_data\\2026-11-14-11-06-37\\school-panorama-demo\\tests\\acceptance-results.json ；stderr 尾部=",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "现有浏览器验收（42 项）与容器重启持久化回归",
+      "status": "skipped",
+      "passed": null,
+      "detail": "浏览器回归由 tests/browser_acceptance.mjs（原业务前端 :5180）执行；重启持久化由主理人重启容器后执行 --case regression_persistence；本脚本不改动上述两个既有脚本",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "business_regression"
+    },
+    {
+      "item": "[未执行] 离线期间业务连续多次修改（停本体服务）",
+      "status": "skipped",
+      "passed": null,
+      "detail": "需主理人配合/容器操作，本次(--all（全部自动项）)未执行。原因：先停止 ontology-service，再连续完成 ≥2 次调课 + 演示时钟变更。可复现命令：python tests/ontology_acceptance.py --case offline_writes --phase offline-writes",
+      "group": "验收二·独立运行与恢复",
+      "case": "offline_writes"
+    },
+    {
+      "item": "[未执行] 恢复本体服务后自动追赶与逐次比对",
+      "status": "skipped",
+      "passed": null,
+      "detail": "需主理人配合/容器操作，本次(--all（全部自动项）)未执行。原因：恢复 ontology-service 后执行，与 --phase offline-writes 的快照比对。可复现命令：python tests/ontology_acceptance.py --case after_recovery --phase after-recovery",
+      "group": "验收二·独立运行与恢复",
+      "case": "after_recovery"
+    },
+    {
+      "item": "[未执行] 来源不可用时仍可查已同步对象并显示新鲜度",
+      "status": "skipped",
+      "passed": null,
+      "detail": "需主理人配合/容器操作，本次(--all（全部自动项）)未执行。原因：先停止原业务服务(backend)。可复现命令：python tests/ontology_acceptance.py --case source_unavailable",
+      "group": "验收二·独立运行与恢复",
+      "case": "source_unavailable"
+    },
+    {
+      "item": "[未执行] 情况③ 同步中途失败前基线（崩溃/重启）",
+      "status": "skipped",
+      "passed": null,
+      "detail": "需主理人配合/容器操作，本次(--all（全部自动项）)未执行。原因：在消费处理到一半时强制终止 ontology-service 前记录基线。可复现命令：python tests/ontology_acceptance.py --case sync_midway_before --phase crash-before",
+      "group": "验收三·同步正确性",
+      "case": "sync_midway_before"
+    },
+    {
+      "item": "[未执行] 情况③ 重启后断点续处理且最终一致",
+      "status": "skipped",
+      "passed": null,
+      "detail": "需主理人配合/容器操作，本次(--all（全部自动项）)未执行。原因：重启 ontology-service 后执行，与 --phase crash-before 的基线比对。可复现命令：python tests/ontology_acceptance.py --case sync_midway_after --phase crash-after",
+      "group": "验收三·同步正确性",
+      "case": "sync_midway_after"
+    },
+    {
+      "item": "[未执行] 情况⑥ 直改库后对账发现差异并修复、不伪造历史",
+      "status": "skipped",
+      "passed": null,
+      "detail": "需主理人配合/容器操作，本次(--all（全部自动项）)未执行。原因：先绕过业务服务直改业务库（如 UPDATE lesson_sessions SET start_time=...）。可复现命令：python tests/ontology_acceptance.py --case sync_reconcile_fix",
+      "group": "验收三·同步正确性",
+      "case": "sync_reconcile_fix"
+    },
+    {
+      "item": "[未执行] 教室接入前后通用内核/前端零改动（git diff 入口）",
+      "status": "skipped",
+      "passed": null,
+      "detail": "需主理人配合/容器操作，本次(--all（全部自动项）)未执行。原因：需提供教室接入前后的 git ref（--before-ref / --after-ref）。可复现命令：python tests/ontology_acceptance.py --case classroom_zero_diff",
+      "group": "验收四·新增对象类型（教室）",
+      "case": "classroom_zero_diff"
+    },
+    {
+      "item": "[未执行] 容器重启持久化回归（复用既有脚本）",
+      "status": "skipped",
+      "passed": null,
+      "detail": "需主理人配合/容器操作，本次(--all（全部自动项）)未执行。原因：主理人重启业务容器后执行。可复现命令：python tests/ontology_acceptance.py --case regression_persistence",
+      "group": "验收六·原业务回归与动态结果",
+      "case": "regression_persistence"
+    }
+  ]
+}

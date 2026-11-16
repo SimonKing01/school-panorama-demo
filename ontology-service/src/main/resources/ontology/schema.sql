@@ -174,3 +174,13 @@ CREATE TABLE IF NOT EXISTS ont_reconcile_run (
     started_at   TIMESTAMP   NOT NULL DEFAULT now(),
     finished_at  TIMESTAMP
 );
+
+-- 在线编辑关系类型（07 增量设计 §5.2）：版本表补 operator / note / definition_source，
+-- 模型定义表同样补三列，供管理页版本时间线展示「谁、为什么、来自 BASELINE 还是 OVERLAY」。
+-- 全部 ADD COLUMN IF NOT EXISTS，已有卷与新卷都幂等。
+ALTER TABLE ont_mapping_version ADD COLUMN IF NOT EXISTS operator VARCHAR(64);
+ALTER TABLE ont_mapping_version ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE ont_mapping_version ADD COLUMN IF NOT EXISTS definition_source VARCHAR(24);
+ALTER TABLE ont_model_def ADD COLUMN IF NOT EXISTS operator VARCHAR(64);
+ALTER TABLE ont_model_def ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE ont_model_def ADD COLUMN IF NOT EXISTS definition_source VARCHAR(24);

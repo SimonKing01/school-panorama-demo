@@ -99,8 +99,24 @@ async function ontoGet(p) {
   } catch { return null }
 }
 
+async function ontoPost(p, body = {}) {
+  try {
+    const r = await fetch(ONTO_API + '/api/ontology' + p, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const j = await r.json().catch(() => ({}))
+    return { status: r.status, data: j && j.data !== undefined ? j.data : j }
+  } catch { return { status: 0, data: null } }
+}
+
 async function goto(page, route, shotName) {
-  await page.goto(BASE + route, { waitUntil: 'domcontentloaded', timeout: 30000 })
+  // ontology-web 用 createWebHashHistory（src/router.ts），真实地址是 /#/xxx。
+  // 旧写法直接拼 /xxx 会落到 hash='' → 重定向到总览，后续断言读到的是错误的页面（
+  // 表现为 URL 变成 /relations#/、svg=0、对象探索器 0 行）。
+  const url = BASE + (route.startsWith('/#') ? route : '/#' + route)
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
   await page.waitForSelector('.nav-item, nav, aside, header, body', { timeout: 4000 }).catch(() => {})
   await page.waitForTimeout(850)
   if (shotName) await page.screenshot({ path: path.join(SHOTS, shotName), fullPage: true }).catch(() => {})
@@ -168,23 +184,51 @@ async function clickFirstResult(page, text) {
   return false
 }
 
+// 通用详情路由（与 ontology-web/src/router.ts 一致；hash 模式）
+const DETAIL_URL_RE = /\/detail\?globalId=/
+
 function objectRoute(gidValue) {
-  // 契约 §2.1 + 工程师口径：globalId 统一 encodeURIComponent（%3A），不混用裸 ':'，
-  // 避免偶发 404（裸 ':' 与 %3A 均可命中 @PathVariable，但脚本统一编码）。
-  return '/object/' + encodeURIComponent(gidValue)
+  // 契约 §2.1 + 工程师口径：globalId 统一 encodeURIComponent（%3A），不混用裸 ':'。
+  // 路由形式以 ontology-web/src/router.ts 为准：hash 模式 + /detail?globalId=xxx。
+  // 旧写法 '/object/<gid>' 在 router 里没有对应记录，会被通配规则重定向到总览。
+  return '/detail?globalId=' + encodeURIComponent(gidValue)
 }
 
 async function gotoObject(page, gidValue, shotName) {
   const route = objectRoute(gidValue)
   try {
     await goto(page, route)
-    const t = await bodyText(page)
-    if (t && (t.includes('陈一诺') || t.includes('LS-003') || t.includes('来源') || t.includes('对象详情'))) {
+    // 就绪判据用「属性区已渲染（.kv .k）」，不要用整页文本里的对象名：
+    // 详情页底部还有「最近变化」区块，历史记录里会出现任意对象名，
+    // 用对象名判定会在页面还是旧数据/半渲染时提前返回（旧写法即因此误判）。
+    await page.waitForSelector('.kv .k', { timeout: 8000 }).catch(() => {})
+    const rendered = await page.evaluate(
+      () => !!document.querySelector('.kv .k')).catch(() => false)
+    const t = rendered ? await bodyText(page) : ''
+    if (rendered) {
       if (shotName) await page.screenshot({ path: path.join(SHOTS, shotName), fullPage: true }).catch(() => {})
       return { ok: true, route, text: t }
     }
   } catch { /* 由调用方按 URL / 文本判定 */ }
   return { ok: false, route, text: '' }
+}
+
+/**
+ * 读取详情页「当前属性」里某个显示名的值（.kv 下 .k + .v 成对渲染）。
+ * 不读整页文本：页面上同时有「最近变化」，历史记录会让旧教师名一直存在，
+ * 用它判断「当前值」会得到错误结论（auto_update_5s 前置断言曾因此恒失败）。
+ */
+async function attrValue(page, label) {
+  return await page.evaluate((lab) => {
+    const keys = Array.from(document.querySelectorAll('.kv .k'))
+    for (const k of keys) {
+      if ((k.textContent || '').trim() === lab) {
+        const v = k.nextElementSibling
+        return v ? (v.textContent || '').trim() : null
+      }
+    }
+    return null
+  }, label).catch(() => null)
 }
 
 function watchConsole(page, tag) {
@@ -253,7 +297,7 @@ async function casePagesDesktop(ctx) {
     await checkFivePages(page, ctx, '桌面', R, true)
     // 通用对象详情（模型驱动，同一套视图）
     const d = await gotoObject(page, GID_STUDENT, '06-通用对象详情-桌面.png')
-    R.check('通用对象详情可打开（由 /object/:globalId 动态渲染）', d.ok && /\/object\//.test(page.url()),
+    R.check('通用对象详情可打开（由 #/detail?globalId= 动态渲染）', d.ok && DETAIL_URL_RE.test(page.url()),
       `route=${d.route} / URL=${page.url()}`)
     if (d.ok) {
       const t = await bodyText(page)
@@ -265,7 +309,7 @@ async function casePagesDesktop(ctx) {
       R.check('桌面对象详情无横向溢出', noOverflow(o), JSON.stringify(o))
     } else {
       R.skip('通用对象详情字段与「返回原业务」入口',
-        '未能定位到可用的对象详情路由，需主理人确认前端 /object/:globalId 实际路径')
+        '未能定位到可用的对象详情路由，需主理人确认前端 #/detail?globalId= 实际路径')
     }
   } finally { await page.close() }
 }
@@ -354,19 +398,19 @@ async function caseModelDrivenViews(ctx) {
 
     // 视角②：通用对象详情（数组驱动）
     const d = await gotoObject(page, GID_STUDENT, '18-模型驱动详情-桌面.png')
-    R.check('同一套通用详情路由可打开（/object/:globalId）',
-      d.ok && /\/object\//.test(page.url()), `URL=${page.url()}`)
+    R.check('同一套通用详情路由可打开（#/detail?globalId=）',
+      d.ok && DETAIL_URL_RE.test(page.url()), `URL=${page.url()}`)
     if (d.ok) {
       const t = await bodyText(page)
       R.check('详情页展示属性区 + 来源/映射 + 动态结果（详情数组驱动）',
         /来源|映射/.test(t) && /演示时间|当前|下一节|动态/.test(t) && /陈一诺/.test(t),
         t.slice(0, 220))
       R.check('列表与详情由同一套通用路由渲染（URL 无 student/classroom 等类型专用路径）',
-        /\/object\//.test(page.url()) && !/\/student\/|\/classroom\/|\/teacher\//.test(page.url()),
+        DETAIL_URL_RE.test(page.url()) && !/\/student\/|\/classroom\/|\/teacher\//.test(page.url()),
         page.url())
     } else {
       R.skip('详情页属性区 / 来源 / 动态结果（数组驱动）',
-        '未能定位通用对象详情路由，需主理人确认前端 /object/:globalId 实际路径')
+        '未能定位通用对象详情路由，需主理人确认前端 #/detail?globalId= 实际路径')
     }
   } finally { await page.close() }
 }
@@ -391,8 +435,8 @@ async function caseGlobalSearch(ctx) {
     R.check('按姓名全局搜索直达学生 陈一诺', t1.includes('陈一诺'), t1.slice(0, 180))
     const clicked = await clickFirstResult(page, '陈一诺')
     await page.waitForTimeout(900)
-    R.check('点击搜索结果可直达通用对象详情（/object/）',
-      clicked && /\/object\//.test(page.url()), `clicked=${clicked} URL=${page.url()}`)
+    R.check('点击搜索结果可直达通用对象详情（#/detail?globalId=）',
+      clicked && /\/detail\?globalId=/.test(page.url()), `clicked=${clicked} URL=${page.url()}`)
     await page.screenshot({ path: path.join(SHOTS, '09-全局搜索直达详情-桌面.png'), fullPage: true }).catch(() => {})
 
     // ② 教室：后接入类型也走同一套搜索 + 通用详情（验收四）
@@ -418,14 +462,14 @@ async function caseGlobalSearch(ctx) {
       if (roomGid) {
         const d = await gotoObject(page, roomGid, '10-教室通用详情-桌面.png')
         R.check('教室打开的是同一套通用对象详情（非教室专用页面）',
-          d.ok && /\/object\//.test(page.url()), `URL=${page.url()}`)
+          d.ok && DETAIL_URL_RE.test(page.url()), `URL=${page.url()}`)
         if (d.ok) {
           const t3 = await bodyText(page)
           R.check('教室通用详情含来源/映射/关联对象', /来源|映射/.test(t3) && /关联|关系/.test(t3),
             t3.slice(0, 200))
         }
       } else {
-        R.skip('教室通用详情与关系图展开', '接口未返回教室 globalId，无法构造 /object/ 路由')
+        R.skip('教室通用详情与关系图展开', '接口未返回教室 globalId，无法构造 #/detail 路由')
       }
     } else if (!hasClassroom) {
       R.skip('页面层：教室全局搜索直达与通用详情',
@@ -441,6 +485,13 @@ async function caseAutoUpdate5s(ctx) {
   const resetCode = await apiPost('/demo/reset')
   R.check('前置：恢复初始演示数据且本体服务已同步', resetCode === 200, `HTTP ${resetCode}`)
   await new Promise(r => setTimeout(r, 1500))
+  // 再重建一次投影：契约 §2.7 规定「已结束」的关系也要展示（标 已结束），
+  // 前几轮用例反复换过教师，页面文本会天然带历史教师名，让「初始不含新教师」这条前置
+  // 断言失去意义。重建后投影只剩当前有效关系，观察窗口才干净。
+  const rb = await ontoPost('/rebuild')
+  R.check('前置：重建投影以清掉历史失效边（干净观察现场）', rb.status === 200,
+    `HTTP ${rb.status}`)
+  await new Promise(r => setTimeout(r, 2500))
   const clock = await apiGet('/demo/clock')
   const day = (clock.demoTime || '').slice(0, 10)
 
@@ -452,10 +503,11 @@ async function caseAutoUpdate5s(ctx) {
     const d = await gotoObject(w1, GID_LESSON)
     await goto(w2, '/changes')
     await w1.bringToFront()
-    const before = await bodyText(w1)
-    R.check('观察视角初始不含新教师 陈思琪（旧状态）', !before.includes('陈思琪'),
-      `张明远=${before.includes('张明远')} 陈思琪=${before.includes('陈思琪')}；`
-      + '观察对象为 LS-003 授课安排本身，属性变化必然可见')
+    const teacherBefore = await attrValue(w1, '授课教师')
+    R.check('观察视角初始的「授课教师」为 张明远（旧状态）',
+      !!teacherBefore && teacherBefore.includes('张明远'),
+      `授课教师=${teacherBefore}；` +
+      '（只读当前属性，不读整页文本：页面底部「最近变化」会保留历史教师名）')
 
     const t0 = Date.now()
     const adj = await apiPostJson('/schedule/3/adjust', {
@@ -468,8 +520,11 @@ async function caseAutoUpdate5s(ctx) {
     let seen1 = false, seen2 = false, e1 = null, e2 = null
     while (Date.now() - t0 < 7000) {
       if (!seen1) {
-        const t = await bodyText(w1)
-        if (t.includes('陈思琪') && t.includes('15:30')) { seen1 = true; e1 = Date.now() - t0 }
+        const teacher = await attrValue(w1, '授课教师')
+        const start = await attrValue(w1, '开始时间')
+        if (teacher && teacher.includes('陈思琪') && start && start.includes('15:30')) {
+          seen1 = true; e1 = Date.now() - t0
+        }
       }
       if (!seen2) {
         const t = await bodyText(w2)
@@ -520,8 +575,12 @@ async function caseRefreshRetry(ctx) {
   try {
     await w.route(matcher, handler)
     const d = await gotoObject(w, GID_LESSON, '13-刷新失败注入前-桌面.png')
-    R.check('观察视角已打开（注入失败前为旧数据）', d.ok && !(await bodyText(w)).includes('陈思琪'),
-      `route=${d.route}`)
+    // 只看「当前属性」的授课教师：整页文本里必然含历史变更记录（页面底部「最近变化」），
+    // 用 bodyText 判「当前是否为旧数据」会恒失败（旧写法即因此误报）。
+    const teacherNow = await attrValue(w, '授课教师')
+    R.check('观察视角已打开（注入失败前为旧数据）',
+      d.ok && !!teacherNow && !teacherNow.includes('陈思琪'),
+      `route=${d.route} 授课教师=${teacherNow}`)
 
     suppressConsoleErrors = true     // 人为注入的 503 不计入「无 JS 错误」断言
     const t0 = Date.now()

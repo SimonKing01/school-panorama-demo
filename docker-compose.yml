@@ -108,6 +108,13 @@ services:
       SOURCE_DB_PASSWORD: ${DEMO_DB_PASSWORD:-demo123456}
       TZ: Asia/Shanghai
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Shanghai"
+      # 关系类型在线编辑（07 增量设计 §3.3）：overlay 落挂载卷，容器重建不丢；
+      # 自重启仅在容器编排下开启（裸 java -jar 保持默认 false，避免自杀后无人拉起）。
+      ONTOLOGY_DEFINITION_DIR: /app/ontology-data
+      ONTOLOGY_SELF_RESTART_ENABLED: "true"
+      ONTOLOGY_APPLY_MODE: RESTART
+    volumes:
+      - ./ontology-data:/app/ontology-data
     ports:
       - "127.0.0.1:18090:8080"
     healthcheck:

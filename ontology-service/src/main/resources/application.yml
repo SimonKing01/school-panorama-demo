@@ -43,6 +43,14 @@ mybatis-plus:
 ontology:
   # 平台「返回原业务对象」按钮跳转的原业务前端地址（A5：只跳转，不在平台改数据）。
   business-web-base: ${BUSINESS_WEB_BASE:http://localhost:5180}
+  # ── 关系类型在线编辑（07 增量设计 §2.2 / §4.1）─────────────────────────
+  # overlay 目录：在线改动落在这里的 relation-types.yaml，属运行时数据、不进版本库。
+  definition-dir: ${ONTOLOGY_DEFINITION_DIR:/app/ontology-data}
+  # 是否允许「应用到运行时」通过受控自退出重启生效。
+  # 默认 false：裸 `java -jar` 无 supervisor 时自杀会永久宕机；仅容器编排里显式设为 true。
+  self-restart-enabled: ${ONTOLOGY_SELF_RESTART_ENABLED:false}
+  # 生效方式：RESTART=自退出重启（容器编排）；MANUAL=只落盘并提示手动重启。
+  apply-mode: ${ONTOLOGY_APPLY_MODE:RESTART}
   sync:
     # Outbox 兜底追赶周期（毫秒）。业务侧投递器为 1s，这里是「漏投」的二次保险。
     catchup-ms: ${ONTOLOGY_CATCHUP_MS:2000}

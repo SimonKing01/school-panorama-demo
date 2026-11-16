@@ -266,9 +266,119 @@ export interface SyncTaskData {
   items: SyncTask[]
 }
 
+/**
+ * 关系生成规则（策略表键 kind + 分支参数）。
+ * FOREIGN_KEY 用 sourceTable/fkColumn/targetTable；JOIN_RULE 用 sourceColumn/joinTable 等。
+ */
+export interface RelationGenerationRule {
+  kind: string
+  sourceTable?: string | null
+  fkColumn?: string | null
+  targetTable?: string | null
+  rule?: string | null
+  distinct?: boolean
+  sourceColumn?: string | null
+  joinTable?: string | null
+  joinFilterColumn?: string | null
+  joinSelectColumn?: string | null
+  validFromColumns?: string[]
+}
+
+/** 关系类型定义（在线编辑提交体，与后端 RelationTypeDef 字段一一对应）。 */
+export interface RelationTypeEditDef {
+  id: string
+  displayName: string
+  fromType: string
+  toType: string
+  forwardName: string
+  reverseName: string
+  direction: string
+  cardinality: string
+  businessEffectiveTime: boolean
+  generation: RelationGenerationRule
+  sourceMappingRef?: string | null
+}
+
 export interface ModelRelationsData {
   mappingVersion: string
-  relations: Record<string, unknown>[]
+  relations: RelationTypeEditDef[]
+}
+
+/** 保存 / 删除 / 恢复基线的返回体。 */
+export interface SaveRelationResult {
+  saved?: boolean
+  deleted?: boolean
+  reset?: boolean
+  applied: boolean
+  noChange?: boolean
+  pendingMappingVersion?: string | null
+  definitionSource?: string
+  message: string
+}
+
+/** 「应用到运行时」的返回体（三选一：202 重启 / 200 待手动重启 / 200 无改动）。 */
+export interface ApplyResult {
+  applying: boolean
+  restartScheduled?: boolean
+  pendingRestart?: boolean
+  noChange?: boolean
+  targetMappingVersion?: string | null
+  message: string
+}
+
+/** 校验失败时 data 的形状（逐条中文错误）。 */
+export interface ValidationErrorData {
+  relationId: string
+  errors: string[]
+}
+
+/** 删除被引用关系时的影响清单。 */
+export interface DeleteImpactData {
+  relationId: string
+  referencedByMappings: { objectType: string; rule: string }[]
+  impactedObjectTypes: string[]
+  hint: string
+}
+
+export interface DefinitionVersionRow {
+  mappingVersion: string
+  definitionHash: string
+  status: string
+  definitionSource?: string | null
+  operator?: string | null
+  note?: string | null
+  activatedAt?: string | null
+}
+
+export interface DefinitionDraft {
+  exists: boolean
+  draftMappingVersion?: string | null
+  draftDefinitionSource?: string | null
+  savedAt?: string | null
+  /** 谁保存的这份草稿（取自版本表里那条 PENDING 行的 operator）。 */
+  savedBy?: string | null
+  /** 保存时的备注。 */
+  savedNote?: string | null
+  pendingApply: boolean
+  /** 应用后会生效的目标版本（「恢复基线」时为打包基线版本）。 */
+  pendingTargetVersion?: string | null
+  /** OVERLAY=在线草稿；BASELINE=恢复基线待生效。 */
+  pendingTargetSource?: string | null
+  relations?: RelationTypeEditDef[]
+}
+
+export interface ModelVersionsData {
+  sourceId: string
+  activeMappingVersion: string
+  activeDefinitionSource: string
+  activeDefinitionHash?: string
+  /** 当前生效版本是谁签字生效的（人工保存时为该操作人，纯基线首启为 system）。 */
+  activeOperator?: string | null
+  activeNote?: string | null
+  baselineMappingVersion?: string
+  draft: DefinitionDraft
+  lastFallback: { occurred: boolean; reason?: string | null; at?: string | null }
+  versions: DefinitionVersionRow[]
 }
 
 export interface ModelMappingsData {

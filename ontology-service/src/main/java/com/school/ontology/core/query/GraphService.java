@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -33,24 +34,35 @@ public class GraphService {
                                          int page, int size) {
         validateDepth(depth);
         ensureObject(globalId);
-        Set<String> nodeIds = expand(globalId, depth, 200);
-        List<Map<String, Object>> items = new ArrayList<>();
-        for (String node : nodeIds) {
-            boolean forward = direction == null || !"reverse".equals(direction);
-            boolean reverse = direction == null || !"forward".equals(direction);
+        boolean forward = direction == null || !"reverse".equals(direction);
+        boolean reverse = direction == null || !"forward".equals(direction);
+        // 边集合规则：depth=1 只看中心自己（用户期望「这个对象有哪些关系」），
+        // depth=2 才扩到「中心 ∪ 一跳邻居」。旧实现直接遍历 expand(center, depth) 的节点，
+        // 而 expand 的第 1 层本就含中心+一跳邻居，于是 depth=1 也扫了邻居的边：
+        // 既混入「邻居之间的关系」，又让同一条边被中心正向 + 邻居反向各收一次（total 虚高）。
+        Map<String, RelationInstance> collected = new LinkedHashMap<>();
+        for (String node : edgeScope(globalId, depth)) {
             if (forward) {
                 for (RelationInstance relation : repository.relationsFrom(node, true)) {
-                    items.add(relationView(relation));
+                    collected.putIfAbsent(relation.relationId(), relation);
                 }
             }
             if (reverse) {
                 for (RelationInstance relation : repository.relationsTo(node, true)) {
-                    items.add(relationView(relation));
+                    collected.putIfAbsent(relation.relationId(), relation);
                 }
             }
         }
-        items.sort((a, b) -> String.valueOf(a.get("relationId"))
-                .compareTo(String.valueOf(b.get("relationId"))));
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (RelationInstance relation : collected.values()) {
+            items.add(relationView(relation));
+        }
+        // 与中心对象直接相连的边排在最前，其余（depth=2 时邻居之间的关系）排后：
+        // 否则按 relationId 自然序时，中心自身的关系可能被挤到第二页之后。
+        items.sort(Comparator
+                .comparingInt((Map<String, Object> view) -> centerAdjacent(view, globalId) ? 0 : 1)
+                .thenComparing(view -> String.valueOf(view.get("relationId"))));
+        // total = 去重后的真实条数，分页协议不变。
         int total = items.size();
         int from = Math.min(Math.max(page - 1, 0) * size, total);
         int to = Math.min(from + size, total);
@@ -83,45 +95,43 @@ public class GraphService {
                     "title", OntologyRepository.str(row.get("title")),
                     "layer", layers.getOrDefault(gid, depth)));
         }
-        List<Map<String, Object>> edges = new ArrayList<>();
-        Set<String> seenEdges = new LinkedHashSet<>();
-        for (String gid : ordered) {
+        // 边与 relations() 共用同一套作用域语义：depth=1 只画中心自己的星形，
+        // depth=2 才画「中心 ∪ 一跳邻居」的边；同一条边会被中心正向与邻居反向各收一次，
+        // 必须按 relationId 去重，否则既重复又把 total 抬高。
+        Map<String, RelationInstance> collected = new LinkedHashMap<>();
+        for (String gid : edgeScope(globalId, depth)) {
             for (RelationInstance relation : repository.relationsFrom(gid, true)) {
-                if (!ordered.contains(relation.toGlobalId()) || !seenEdges.add(relation.relationId())) {
-                    continue;
+                if (ordered.contains(relation.fromGlobalId()) && ordered.contains(relation.toGlobalId())) {
+                    collected.putIfAbsent(relation.relationId(), relation);
                 }
-                Map<String, Object> edge = Resp.map(
-                        "relationId", relation.relationId(),
-                        "relationType", relation.relationType(),
-                        "from", relation.fromGlobalId(),
-                        "to", relation.toGlobalId(),
-                        "active", relation.active(),
-                        "label", labelOf(relation.relationType(), relation.active()),
-                        "reason", relation.reason(),
-                        "basis", relation.active()
-                                ? "关系有效（revision " + relation.appliedRevision() + " 建立或确认）"
-                                : "旧关系已结束（validTo " + Resp.ts(relation.validTo()) + "）");
-                edges.add(edge);
             }
             for (RelationInstance relation : repository.relationsTo(gid, true)) {
-                if (!ordered.contains(relation.fromGlobalId()) || !seenEdges.add(relation.relationId())) {
-                    continue;
+                if (ordered.contains(relation.fromGlobalId()) && ordered.contains(relation.toGlobalId())) {
+                    collected.putIfAbsent(relation.relationId(), relation);
                 }
-                edges.add(Resp.map(
-                        "relationId", relation.relationId(),
-                        "relationType", relation.relationType(),
-                        "from", relation.fromGlobalId(),
-                        "to", relation.toGlobalId(),
-                        "active", relation.active(),
-                        "label", labelOf(relation.relationType(), relation.active()),
-                        "reason", relation.reason(),
-                        "basis", relation.active()
-                                ? "关系有效（revision " + relation.appliedRevision() + " 建立或确认）"
-                                : "旧关系已结束（validTo " + Resp.ts(relation.validTo()) + "）"));
             }
+        }
+        List<Map<String, Object>> edges = new ArrayList<>();
+        for (RelationInstance relation : collected.values()) {
+            edges.add(edgeView(relation));
         }
         return Resp.map("center", globalId, "depth", depth, "limit", limit, "page", page,
                 "truncated", truncated, "nodes", nodes, "edges", edges);
+    }
+
+    /** 关系图里的一条边（与关系列表的 relationView 分离：图只需要两端的 globalId 字符串）。 */
+    private Map<String, Object> edgeView(RelationInstance relation) {
+        return Resp.map(
+                "relationId", relation.relationId(),
+                "relationType", relation.relationType(),
+                "from", relation.fromGlobalId(),
+                "to", relation.toGlobalId(),
+                "active", relation.active(),
+                "label", labelOf(relation.relationType(), relation.active()),
+                "reason", relation.reason(),
+                "basis", relation.active()
+                        ? "关系有效（revision " + relation.appliedRevision() + " 建立或确认）"
+                        : "旧关系已结束（validTo " + Resp.ts(relation.validTo()) + "）");
     }
 
     public Map<String, Object> relationView(RelationInstance relation) {
@@ -145,6 +155,37 @@ public class GraphService {
                 "validTo", Resp.ts(relation.validTo()),
                 "active", relation.active(),
                 "appliedRevision", relation.appliedRevision());
+    }
+
+    /** 该边是否与中心对象直接相连（from 或 to 等于中心 globalId）；用于排序分组，不影响返回字段。 */
+    private static boolean centerAdjacent(Map<String, Object> view, String centerGlobalId) {
+        if (view == null || centerGlobalId == null) {
+            return false;
+        }
+        return centerGlobalId.equals(endGlobalId(view.get("from")))
+                || centerGlobalId.equals(endGlobalId(view.get("to")));
+    }
+
+    /** 从关系端点的嵌套结构里取 globalId；结构缺失时返回 null（不抛异常，排序容错）。 */
+    private static String endGlobalId(Object endpoint) {
+        if (endpoint instanceof Map<?, ?> map) {
+            Object globalId = map.get("globalId");
+            return globalId == null ? null : String.valueOf(globalId);
+        }
+        return null;
+    }
+
+    /**
+     * 边集合作用域 S：depth=1 只含中心对象本身，depth=2 才含「中心 ∪ 一跳邻居」。
+     *
+     * <p>只遍历 S 内节点的出边/入边，就等价于「保留 from ∈ S 或 to ∈ S 的边」，
+     * 再用 relationId 去重即可消除「中心正向 + 邻居反向」造成的重复。</p>
+     */
+    private Set<String> edgeScope(String center, int depth) {
+        if (depth <= 1) {
+            return Set.of(center);
+        }
+        return expand(center, 1, 200);
     }
 
     private void ensureObject(String globalId) {

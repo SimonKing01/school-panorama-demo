@@ -121,7 +121,11 @@ def verify_cross_system(ctx):
         if name == "对象详情":
             return "陈思琪" in s and "15:30" in s
         if name == "关系图":
-            return "陈思琪" in s
+            # 图视角的就绪判据必须是「新边已生效」，不能只看节点标题：
+            # 已结束的旧关系同样会带出 teacher:5 的节点，用标题判就绪会在边还没换边时提前返回
+            # （实测：节点已含陈思琪但 4 条活动边里没有 teacher:5）。
+            edges = (resp.data or {}).get("edges") or []
+            return any(e.get("active") is True and e.get("to") == GID_NEW_TEACHER for e in edges)
         return "陈思琪" in s or QA_REASON in s
 
     first_seen = {}
@@ -154,12 +158,16 @@ def verify_cross_system(ctx):
             json.dumps(timing, ensure_ascii=False))
 
     # 关系图：旧关系结束 + 新关系建立
+    # 断言必须按两端 globalId 判定（缺陷修复，2026-11-16）：图的边只带 from/to 的 globalId
+    # 与关系标签，人读的标题在 nodes 里；旧写法在边里找"陈思琪"永远找不到，导致误报失败。
     graph = onto_gid_get(c, GID_LESSON, "/graph", depth=1, limit=50)
     edges = (graph.data or {}).get("edges") or []
-    new_edge = any(e.get("active") is True and "陈思琪" in json.dumps(e, ensure_ascii=False) for e in edges)
-    old_edge = any(e.get("active") is False or e.get("validTo") for e in edges)
+    new_edge = any(e.get("active") is True and e.get("to") == GID_NEW_TEACHER for e in edges)
+    old_edge = any(e.get("active") is False and e.get("to") == GID_OLD_TEACHER for e in edges)
     r.check("关系图可见新关系建立与旧关系结束", new_edge and old_edge,
-            "edges=%d, new=%s, ended=%s" % (len(edges), new_edge, old_edge))
+            "edges=%d（其中有效 %d 条）, 新边(→%s)=%s, 旧边(→%s 已结束)=%s"
+            % (len(edges), sum(1 for e in edges if e.get("active")),
+               GID_NEW_TEACHER, new_edge, GID_OLD_TEACHER, old_edge))
 
     # 旧老师 / 新老师两侧都能查到同一次关系变化
     def qa_change_ids(resp):
@@ -671,7 +679,27 @@ def verify_admin_retry(ctx):
                "未构造来源不可用窗口；请主理人停止原业务服务(backend)后重跑 --case admin_retry")
         return
     failed = [x for x in rows if x.get("status") in ("FAILED", "DEAD")]
-    target = (failed or rows)[0]
+    if not failed:
+        # 健康系统里不存在失败事件，这是好事而不是缺陷。此时只能验证「不该重试的事件
+        # 会被明确拒绝」这条语义；真正的重放路径需要先制造失败（见 source_unavailable
+        # 用例：停掉原业务服务后重试），否则断言 PENDING 就是强人所难。
+        delivered = [x for x in rows if x.get("status") == "DELIVERED"]
+        sample = (delivered or rows)[0]
+        sid = sample.get("eventId")
+        bad = c.onto("POST", "/admin/retry?eventId=" + quote(str(sid)), {})
+        r.check("没有失败事件时：重试已投递/不存在的事件被明确拒绝（不误报成功）",
+                (not bad.onto_ok) or (bad.data or {}).get("status") != "PENDING",
+                "HTTP %s / code=%s（该事件原状态=%s，outbox 共 %d 条，FAILED/DEAD=%d）"
+                % (bad.status, bad.code, sample.get("status"), len(rows), len(failed)))
+        r.skip("底座 /admin/retry 重放失败事件并幂等恢复",
+               "当前无 FAILED/DEAD 事件（outbox 全部 DELIVERED），无法构造重放前置；"
+               "需先制造失败事件后重跑：先停 backend 再调一次调课提交，或执行"
+               " --case source_unavailable 后在同一停机窗口重跑 --case admin_retry")
+        r.skip("原业务不可用时 /admin/retry 返回 SOURCE_UNAVAILABLE + 中文错误",
+               "sourceUp 仍为 True，未构造来源不可用窗口；请主理人停止原业务服务(backend)后"
+               "在同一停机窗口重跑 --case admin_retry（与 --case source_unavailable 共用）")
+        return
+    target = failed[0]
     eid = target.get("eventId")
     r.check("/admin/outbox 可读且能定位待重试事件",
             ob.onto_ok and bool(eid),
@@ -758,22 +786,34 @@ def verify_import_during_change(ctx):
             "底座变化总数=%d" % total_of(ch))
 
     # D1 重复导入不产生重复对象与关系
-    second = c.onto("POST", "/import/full", {})
-    if second.onto_ok:
-        tid2 = (second.data or {}).get("taskId")
-        wait_until(lambda: (c.onto("GET", "/import/progress?taskId=%s" % tid2).data or {}).get("status")
-                   in ("SUCCESS", "FAILED"), 90.0, 0.5)
-    wait_synced(c, 30.0)
-    counts_after = (c.onto("GET", "/overview").data or {}).get("counts") or {}
-    stable = (bool(counts_before) and bool(counts_after)
-              and counts_before.get("objects") is not None
+    # 口径（缺陷修复，2026-11-16）：必须比较「两次连续导入之间」的计数，且第一次导入要在
+    # 本用例的调课完全落定之后再跑。原因：JOIN_RULE 派生关系（学生→授课教师）在增量事件
+    # 路径下不会重算，只有全量导入/重建才补齐——这是已知限制（见交付说明 §8.2），
+    # 若拿调课前的 counts_before，或拿「调课刚落、规则关系还没补」的中间态做基线，
+    # 断言会把「业务变更 + 已知限制」误报成「重复导入产生了重复」。
+    # 实测旧写法恒为 before=329 / after=337（差额=8 名学生×1 位新教师）。
+    def _run_full_import():
+        resp = c.onto("POST", "/import/full", {})
+        if resp.onto_ok:
+            tid = (resp.data or {}).get("taskId")
+            wait_until(lambda: (c.onto("GET", "/import/progress?taskId=%s" % tid).data or {})
+                       .get("status") in ("SUCCESS", "FAILED"), 90.0, 0.5)
+        wait_synced(c, 30.0)
+        return (c.onto("GET", "/overview").data or {}).get("counts") or {}
+
+    baseline_reimport = _run_full_import()      # 让规则关系先补齐，建立干净基线
+    counts_after = _run_full_import()           # 再导入一次，理论上计数不应再变
+    stable = (bool(baseline_reimport) and bool(counts_after)
+              and baseline_reimport.get("objects") is not None
               and counts_after.get("objects") is not None
-              and counts_before.get("objects") == counts_after.get("objects")
-              and counts_before.get("relations") == counts_after.get("relations"))
+              and baseline_reimport.get("objects") == counts_after.get("objects")
+              and baseline_reimport.get("relations") == counts_after.get("relations"))
     r.check("连续两次全量导入：对象数/关系数不变（不产生重复）", stable,
-            "before objects=%s relations=%s / after objects=%s relations=%s" %
-            (counts_before.get("objects"), counts_before.get("relations"),
-             counts_after.get("objects"), counts_after.get("relations")))
+            "第一次 objects=%s relations=%s / 第二次 objects=%s relations=%s"
+            "（本用例调课前的旧基线 objects=%s relations=%s，差额=本次调课的业务影响，不计入重复判定）" %
+            (baseline_reimport.get("objects"), baseline_reimport.get("relations"),
+             counts_after.get("objects"), counts_after.get("relations"),
+             counts_before.get("objects"), counts_before.get("relations")))
     r.check("重复导入后 globalId 稳定（授课安排仍可定位）", onto_get_object(c, GID_LESSON).onto_ok,
             GID_LESSON)
     _restore_clean_state(ctx, "导入期修改")

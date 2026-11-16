@@ -4,6 +4,7 @@ import com.school.ontology.common.Resp;
 import com.school.ontology.core.model.GlobalIds;
 import com.school.ontology.core.model.ModelDefinitionLoader;
 import com.school.ontology.core.model.ModelRegistry;
+import com.school.ontology.core.projection.ChangeUnit;
 import com.school.ontology.core.projection.EventPlan;
 import com.school.ontology.core.projection.SnapshotBatch;
 import com.school.ontology.core.projection.SnapshotBuilder;
@@ -17,8 +18,10 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 事件计划解析器：依据事件负载与只读业务库生成投影变更计划。
@@ -55,14 +58,14 @@ public class SourceDbEventSnapshotResolver implements EventSnapshotResolver {
 
         if ("CLOCK".equals(kind)) {
             return new EventPlan(List.of(), List.of(), demoTimeUpdate(payload),
-                    List.of(), List.of(), Map.of());
+                    List.of(), List.of(), Map.of(), List.of(), List.of());
         }
         if (isFullSnapshotHint(kind, payload)) {
             // SYNC_TODAY / RESET 只给一条全量提示事件，底座重扫全部对象类型；
             // 不把它们伪装成逐条业务变更历史（不伪造操作人/发生时间）。
             List<SnapshotBatch> batches = new ArrayList<>(snapshotSource.snapshot(event.revision()).values());
             return new EventPlan(batches, List.of(), Map.of(), List.of(), List.of(),
-                    changeInfo(kind, payload, mappingVersion));
+                    changeInfo(kind, payload, mappingVersion), List.of(), List.of());
         }
         if ("DELETE".equals(kind)) {
             List<String> tombstones = new ArrayList<>();
@@ -73,12 +76,16 @@ public class SourceDbEventSnapshotResolver implements EventSnapshotResolver {
                 }
             }
             return new EventPlan(List.of(), tombstones, Map.of(), tombstones, List.of(),
-                    changeInfo(kind, payload, mappingVersion));
+                    changeInfo(kind, payload, mappingVersion), List.of(), List.of());
         }
 
         List<SnapshotBatch> batches = new ArrayList<>();
         List<String> selfGlobalIds = new ArrayList<>();
         List<String> tombstones = new ArrayList<>();
+        // 逐条目变更单元：批量事件（BATCH_ADJUST）的 items[] 每条都有
+        // before/after/diff，而顶层 diff 是 allDiffs（所有条目合并）。
+        // 这里逐条留一份，ProjectionWriter 才能把变更历史按条目拆开。
+        List<ChangeUnit> changeUnits = new ArrayList<>();
         for (Map<String, Object> item : itemsOf(payload)) {
             String sourceTable = text(item.get("sourceTable"));
             String sourcePk = text(item.get("sourcePk"));
@@ -96,9 +103,59 @@ public class SourceDbEventSnapshotResolver implements EventSnapshotResolver {
             for (var row : batch.objects()) {
                 selfGlobalIds.add(row.globalId());
             }
+            changeUnits.add(new ChangeUnit(GlobalIds.gid(registry.sourceId(), objectType, sourcePk),
+                    mapOf(item.get("before")), mapOf(item.get("after")),
+                    listOfMap(item.get("diff")), sourceTable, sourcePk,
+                    text(item.get("reason"))));
+        }
+
+        // 邻居刷新：事件只重建「自身对象」，但关系换边后旧/新邻居的派生属性（如教室的排课数、
+        // 教师的任教班级）会滞后。这里按事件给出的相关对象 gid 重扫来源库，
+        // 放进 refreshBatches（只写对象与来源引用、关系一律不动）；这些对象不进 selfGlobalIds
+        // （业务状态未改变，只写 DERIVED_RELATED 影响）。
+        List<String> related = new ArrayList<>(new LinkedHashSet<>(relatedGlobalIds(payload)));
+        List<SnapshotBatch> refreshBatches = new ArrayList<>();
+        Set<String> handled = new LinkedHashSet<>(selfGlobalIds);
+        for (String globalId : related) {
+            if (globalId == null || !handled.add(globalId)) {
+                continue;
+            }
+            SnapshotBatch refresh = relatedBatch(globalId, ctx);
+            if (refresh != null) {
+                refreshBatches.add(refresh);
+            }
         }
         return new EventPlan(batches, tombstones, Map.of(), selfGlobalIds,
-                relatedGlobalIds(payload), changeInfo(kind, payload, mappingVersion));
+                related, changeInfo(kind, payload, mappingVersion), refreshBatches, changeUnits);
+    }
+
+    /**
+     * 相关对象的刷新批次：解析 gid → 只读重扫来源行 → 构建投影。
+     *
+     * <p>刻意只保留 objects() 与 sourceRefs()：
+     * 一是不让邻居批次的关系重算与自身批次互相覆盖（关系只会抖动）；
+     * 二是来源行已消失时返回 null 而不是墓碑——邻居不存在不等于被删除，绝不误标墓碑。</p>
+     */
+    private SnapshotBatch relatedBatch(String globalId, MappingContext ctx) {
+        // gid 规则固定为 gid:{sourceId}:{objectType}:{sourcePk}，limit=4 让 sourcePk 里的冒号原样保留。
+        String[] parts = globalId.split(":", 4);
+        if (parts.length != 4 || !"gid".equals(parts[0])) {
+            return null;
+        }
+        if (!registry.sourceId().equals(parts[1])) {
+            return null;   // 跨源 gid 一律不处理，避免跨源合并
+        }
+        String objectType = parts[2];
+        String sourcePk = parts[3];
+        if (!registry.hasType(objectType) || sourcePk.isBlank()) {
+            return null;
+        }
+        List<SourceRecord> records = adapter.scan(SourceQuery.byPk(objectType, sourcePk));
+        if (records.isEmpty()) {
+            return null;
+        }
+        SnapshotBatch built = builder.buildAll(records, objectType, ctx);
+        return new SnapshotBatch(built.objects(), new ArrayList<>(), built.sourceRefs());
     }
 
     private boolean isFullSnapshotHint(String kind, Map<String, Object> payload) {
@@ -211,6 +268,19 @@ public class SourceDbEventSnapshotResolver implements EventSnapshotResolver {
     @SuppressWarnings("unchecked")
     private static Map<String, Object> eventMap(Object value) {
         return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    /** 条目级字段快照：缺失或类型不符时给空表，绝不让 null 流进变更历史。 */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mapOf(Object value) {
+        return value instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : Map.of();
+    }
+
+    /** 条目级字段差集：缺失或类型不符时给空表。 */
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> listOfMap(Object value) {
+        return value instanceof List<?> list
+                ? new ArrayList<>((List<Map<String, Object>>) list) : List.of();
     }
 
     private static String text(Object value) {

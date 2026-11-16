@@ -1,10 +1,12 @@
 package com.school.ontology.core.sync;
 
+import com.school.ontology.core.model.ModelRegistry;
 import com.school.ontology.core.projection.ProjectionStore;
 import com.school.ontology.core.projection.ProjectionWriter;
 import com.school.ontology.core.projection.SnapshotBatch;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -15,6 +17,10 @@ import java.util.Map;
  * ont_object_version；审计历史（变更历史、影响、同步任务、消费进度、错误记录、
  * 对账运行）与模型/配置全部保留，platform_revision 只增不减。
  * 重建前后全局 ID、当前属性、关系完全一致，因为稳定 ID 规则与映射版本不变。</p>
+ *
+ * <p>重建成功即视为一次成功同步：数据源的 snapshot_revision 跟到本次水位、
+ * last_success_sync_at 刷新为真实处理时间、状态置 SYNCED、errorCount 清零，
+ * 否则会出现「任务表 snap=87 成功，而数据源仍停在 85、时间还是上次导入」的自相矛盾。</p>
  */
 @Component
 public class RebuildService {
@@ -22,11 +28,14 @@ public class RebuildService {
     private final SnapshotSource source;
     private final ProjectionStore store;
     private final ProjectionWriter writer;
+    private final ModelRegistry registry;
 
-    public RebuildService(SnapshotSource source, ProjectionStore store, ProjectionWriter writer) {
+    public RebuildService(SnapshotSource source, ProjectionStore store, ProjectionWriter writer,
+                          ModelRegistry registry) {
         this.source = source;
         this.store = store;
         this.writer = writer;
+        this.registry = registry;
     }
 
     public long rebuild() {
@@ -60,10 +69,23 @@ public class RebuildService {
                                     "ont_processed_event", "ont_error_log", "ont_reconcile_run",
                                     "ont_model_def", "ont_mapping_version", "ont_data_source",
                                     "ont_platform_revision")), null);
+            // 4. 数据源水位与新鲜度跟随重建结果，避免「任务成功但数据源仍是旧水位」。
+            Map<String, Object> update = new LinkedHashMap<>();
+            update.put("snapshotRevision", watermark);
+            update.put("lastSuccessSyncAt", LocalDateTime.now());
+            update.put("status", "SYNCED");
+            update.put("errorCount", 0L);
+            store.updateDataSource(registry.sourceId(), update);
         } catch (Exception e) {
             String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             store.updateSyncTask(taskId, "FAILED", watermark, Map.of(), message);
             store.appendErrorLog("REBUILD", String.valueOf(taskId), message);
+            // 重建是「先清空当前投影、再逐批写回」的非事务流程，中途失败时投影一定残缺。
+            // 数据源必须立刻从 SYNCED 降级，否则 overview 会继续对外宣称「已同步」，
+            // 而实际对象数已经少了一大半——这种静默错误比直接报错危险得多（P7-2）。
+            Map<String, Object> degraded = new LinkedHashMap<>();
+            degraded.put("status", "DEGRADED");
+            store.updateDataSource(registry.sourceId(), degraded);
         }
         return taskId;
     }

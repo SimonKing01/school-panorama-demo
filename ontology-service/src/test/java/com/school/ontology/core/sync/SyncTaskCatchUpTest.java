@@ -36,7 +36,7 @@ class SyncTaskCatchUpTest {
 
         AtomicLong catchUpFrom = new AtomicLong(-1L);
         EventConsumer consumer = new EventConsumer(store, new DirectTxExecutor(), writer,
-                new StubEventSnapshotResolver(EventPlan.empty()));
+                new StubEventSnapshotResolver(EventPlan.empty()), registry);
         CatchUpService catchUp = new CatchUpService(null, consumer, store, registry, 200) {
             @Override
             public int catchUp(long fromRevision) {

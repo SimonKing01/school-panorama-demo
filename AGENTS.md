@@ -68,3 +68,10 @@
 - **业务库 Outbox 表必须由启动迁移器幂等创建**（`CREATE TABLE IF NOT EXISTS`），适用于已有 `school-panorama_dbdata` 数据卷；**严禁依赖删卷重建**升级。
 - `docker-compose.yml`、`AGENTS.md`、`README.md`、`.gitignore`、`tests/`、`scripts/` 由主 Agent 维护；其余目录按批次由对应实现者维护，同一文件同一时间只有一个写者。
 - 达梦数据库与其他 Java 系统接入**本轮未测试、未实现**，只能在文档中列适配边界与待验证项，不得宣称已支持。
+
+### 本体定义的「基线 / 运行时」边界（2026-11-16 起生效）
+
+- **打包基线**：`ontology-service/src/main/resources/ontology/**/*.yaml`（`object-types.yaml` / `relation-types.yaml` / `mapping/school-source.yaml` 三件套）。随镜像发布、构造期强校验，非法则**拒绝启动**。改它等于改代码，必须走提交流程。
+- **在线编辑 overlay**：`ontology-data/relation-types.yaml`（由 `ONTOLOGY_DEFINITION_DIR` 指定，compose 里挂到 `./ontology-data`）。属**运行时数据，一律不进版本库**（`.gitignore` 已含 `ontology-data/`）；只在「页面上在线改关系类型」时生成，删掉它即回到基线。
+- 因此排障时的第一判断：先看 `GET /api/ontology/model/versions` 的 `activeDefinitionSource` 是 `BASELINE` 还是 `OVERLAY`。是 `OVERLAY` 说明当前跑的不是仓库里的那份定义，对不上属预期，应「恢复基线」后再复现。
+- overlay 非法（被手改坏）时**不得锁死服务**：回退基线 + 写 `ont_error_log(phase=OVERLAY_FALLBACK)` + 坏文件改名 `.invalid.<ts>`；修复后手动删除该文件即可重新落盘。

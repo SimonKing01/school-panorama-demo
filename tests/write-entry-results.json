@@ -1,0 +1,243 @@
+{
+  "time": "2026-11-16 11:24:30",
+  "title": "写入口同步闭环验收（批量调课 + 演示时间）",
+  "summary": {
+    "total": 17,
+    "passed": 17,
+    "failed": 0
+  },
+  "results": [
+    {
+      "item": "reset 后底座回到 SYNCED 且快照水位=来源水位",
+      "passed": true,
+      "detail": {
+        "waitSec": 1.156,
+        "snapshot": 142,
+        "current": 142,
+        "status": "SYNCED"
+      }
+    },
+    {
+      "item": "批量调课提交成功",
+      "passed": true,
+      "detail": {
+        "http": 200,
+        "code": null,
+        "message": null,
+        "conflicts": null,
+        "commitMs": 242,
+        "items": [
+          [
+            "LS-001",
+            "张明远",
+            "陈思琪"
+          ],
+          [
+            "LS-002",
+            "李静怡",
+            "周文博"
+          ]
+        ]
+      }
+    },
+    {
+      "item": "批量调课只 bump 一次 revision",
+      "passed": true,
+      "detail": {
+        "before": 142,
+        "after": 143,
+        "batchId": "BATCH-20261116112426-A052"
+      }
+    },
+    {
+      "item": "返回体含 appliedCount=2 与 2 条课次",
+      "passed": true,
+      "detail": {
+        "appliedCount": 2,
+        "batchId": "BATCH-20261116112426-A052"
+      }
+    },
+    {
+      "item": "恰好 1 条 BATCH_ADJUST 事件（不是逐条 2 条）",
+      "passed": true,
+      "detail": {
+        "matched": 1,
+        "rows": [
+          "BATCH_ADJUST",
+          "RESET",
+          "RESET",
+          "CLOCK"
+        ],
+        "totalBefore": 57,
+        "totalAfter": 58
+      }
+    },
+    {
+      "item": "BATCH_ADJUST 事件被投递器置为 DELIVERED",
+      "passed": true,
+      "detail": {
+        "waitSec": 0.727
+      }
+    },
+    {
+      "item": "底座可见 LS-001 新教师 陈思琪",
+      "passed": true,
+      "detail": {
+        "lesson": "LS-001",
+        "expected": "陈思琪",
+        "visibleSec": 0.076,
+        "ok": true,
+        "actual": "陈思琪"
+      }
+    },
+    {
+      "item": "底座可见 LS-002 新教师 周文博",
+      "passed": true,
+      "detail": {
+        "lesson": "LS-002",
+        "expected": "周文博",
+        "visibleSec": 0.087,
+        "ok": true,
+        "actual": "周文博"
+      }
+    },
+    {
+      "item": "两条课次均在 5 秒内同步（含轮询间隔）",
+      "passed": true,
+      "detail": {
+        "perLessonSec": {
+          "LS-001": 0.076,
+          "LS-002": 0.087
+        },
+        "commitMs": 242,
+        "condition": "本地直连 / 1s 投递轮询 / 0.2s 查询轮询"
+      }
+    },
+    {
+      "item": "底座变化历史按条目各写 1 条（2 条课次 → 2 条记录）",
+      "passed": true,
+      "detail": {
+        "matched": 2,
+        "expected": [
+          "LS-001",
+          "LS-002"
+        ],
+        "changeIds": {
+          "LS-001": 20,
+          "LS-002": 21
+        }
+      }
+    },
+    {
+      "item": "每条记录只带自己的 diff，不混入同批其他课次",
+      "passed": true,
+      "detail": {
+        "LS-001": {
+          "changeId": 20,
+          "diff": [
+            [
+              "teacherName",
+              "张明远",
+              "陈思琪"
+            ]
+          ],
+          "foreign": [],
+          "relationsAdded": 1,
+          "relationsRemoved": 1
+        },
+        "LS-002": {
+          "changeId": 21,
+          "diff": [
+            [
+              "teacherName",
+              "李静怡",
+              "周文博"
+            ]
+          ],
+          "foreign": [],
+          "relationsAdded": 1,
+          "relationsRemoved": 1
+        }
+      }
+    },
+    {
+      "item": "每条记录带自己的关系增删（换教师=旧关系结束+新关系建立）",
+      "passed": true,
+      "detail": {
+        "LS-001": {
+          "changeId": 20,
+          "diff": [
+            [
+              "teacherName",
+              "张明远",
+              "陈思琪"
+            ]
+          ],
+          "foreign": [],
+          "relationsAdded": 1,
+          "relationsRemoved": 1
+        },
+        "LS-002": {
+          "changeId": 21,
+          "diff": [
+            [
+              "teacherName",
+              "李静怡",
+              "周文博"
+            ]
+          ],
+          "foreign": [],
+          "relationsAdded": 1,
+          "relationsRemoved": 1
+        }
+      }
+    },
+    {
+      "item": "演示时间提交成功",
+      "passed": true,
+      "detail": {
+        "http": 200,
+        "code": null,
+        "target": "2026-11-15T07:30:00",
+        "commitMs": 12
+      }
+    },
+    {
+      "item": "底座 ont_data_source.demo_time 同步为新时间",
+      "passed": true,
+      "detail": {
+        "expected": "2026-11-15T07:30:00",
+        "visibleSec": 0.231,
+        "actual": "2026-11-15T07:30:00"
+      }
+    },
+    {
+      "item": "演示时间同步在 5 秒内完成",
+      "passed": true,
+      "detail": {
+        "visibleSec": 0.231
+      }
+    },
+    {
+      "item": "CLOCK 不产生对象版本（动态结果零写入）",
+      "passed": true,
+      "detail": {
+        "lessonVersionBefore": 2,
+        "lessonVersionAfter": 2,
+        "revisionBefore": 143,
+        "revisionAfter": 144,
+        "note": "业务 revision 增加（CLOCK 事件本身），但课次对象版本不变"
+      }
+    },
+    {
+      "item": "reset 后重新 SYNCED 且水位追平",
+      "passed": true,
+      "detail": {
+        "waitSec": 1.649,
+        "snapshot": 145,
+        "current": 145,
+        "dead": 0
+      }
+    }
+  ]
+}

@@ -23,6 +23,25 @@ function originLabel(origin: string): string {
   }
   return map[origin] ?? origin
 }
+
+/**
+ * 关系条目的人类可读文案：底座写入的是
+ * {relationId, relationType, displayName, fromGlobalId, fromTitle, toGlobalId, toTitle, reason}，
+ * 这里按「展示名 → 两端标题 → 类型标识 → 全局 ID」逐级回退，任何字段缺失都不会出现空白或 JSON。
+ */
+function fmtRelation(rel: Record<string, unknown>): string {
+  const pick = (key: string): string => {
+    const value = rel?.[key]
+    if (value === null || value === undefined) return ''
+    return String(value).trim()
+  }
+  const name = pick('displayName') || pick('relationType') || '关系'
+  const from = pick('fromTitle') || pick('fromGlobalId') || '未知对象'
+  const to = pick('toTitle') || pick('toGlobalId') || '未知对象'
+  const type = pick('relationType')
+  const arrow = `${from} → ${to}`
+  return type ? `${name}：${arrow}（关系类型 ${type}）` : `${name}：${arrow}`
+}
 </script>
 
 <template>
@@ -63,11 +82,15 @@ function originLabel(origin: string): string {
 
     <div v-if="(item.relationsAdded ?? []).length" style="margin-top:8px">
       <b>新建立关系</b>
-      <div v-for="(rel, index) in item.relationsAdded ?? []" :key="'a' + index" class="hint">{{ fmt(rel) }}</div>
+      <div v-for="(rel, index) in item.relationsAdded ?? []" :key="'a' + index" class="hint">
+        {{ fmtRelation(rel) }}
+      </div>
     </div>
     <div v-if="(item.relationsRemoved ?? []).length" style="margin-top:8px">
       <b>已结束关系</b>
-      <div v-for="(rel, index) in item.relationsRemoved ?? []" :key="'r' + index" class="hint">{{ fmt(rel) }}</div>
+      <div v-for="(rel, index) in item.relationsRemoved ?? []" :key="'r' + index" class="hint">
+        {{ fmtRelation(rel) }}
+      </div>
     </div>
 
     <div v-if="(item.impact ?? []).length" style="margin-top:10px">

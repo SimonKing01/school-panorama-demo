@@ -1,21 +1,33 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
-import { api, qs } from '../api'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { api, qs, ApiError } from '../api'
 import { registerRefresher } from '../store'
 import SourceStatusBadge from '../components/SourceStatusBadge.vue'
+import RelationTypeEditorDialog from '../components/RelationTypeEditorDialog.vue'
+import DefinitionVersionPanel from '../components/DefinitionVersionPanel.vue'
+import { useDefinitionApply } from '../composables/useDefinitionApply'
 import {
   fmt,
+  type DeleteImpactData,
   type ModelMappingsData,
   type ModelRelationsData,
   type ModelTypesData,
+  type ModelVersionsData,
   type OutboxData,
+  type RelationTypeEditDef,
+  type SaveRelationResult,
   type SourceStatus,
   type SyncTaskData,
+  type ValidationErrorData,
 } from '../types'
+
+/** 与后端一致的默认操作人（原业务 change_records.operator 口径）。 */
+const OPERATOR = '演示管理员'
 
 const modelTypes = ref<ModelTypesData | null>(null)
 const relations = ref<ModelRelationsData | null>(null)
 const mappings = ref<ModelMappingsData | null>(null)
+const versions = ref<ModelVersionsData | null>(null)
 const status = ref<SourceStatus | null>(null)
 const tasks = ref<SyncTaskData | null>(null)
 const outbox = ref<OutboxData | null>(null)
@@ -23,20 +35,40 @@ const message = ref('')
 const error = ref('')
 const taskIdInput = ref('')
 const eventIdInput = ref('')
+
+/** 关系类型编辑状态。 */
+const editorOpen = ref(false)
+const editing = ref<RelationTypeEditDef | null>(null)
+const formErrors = ref<string[]>([])
+const saving = ref(false)
+/** 删除影响确认（先 409 拿清单，再 force 重发）。 */
+const deleteImpact = ref<{ relationId: string; impact: DeleteImpactData } | null>(null)
+const resetting = ref(false)
+const resetConfirmOpen = ref(false)
+
+const apply = useDefinitionApply(async () => {
+  await reload()
+})
+const applyPhase = apply.phase
+const applyMessage = apply.message
+
 let unregister: (() => void) | undefined
 
 async function loadAll(): Promise<void> {
-  const [typesData, relationsData, mappingsData, statusData, tasksData, outboxData] = await Promise.all([
-    api.get<ModelTypesData>('/model/types'),
-    api.get<ModelRelationsData>('/model/relations'),
-    api.get<ModelMappingsData>('/model/mappings'),
-    api.get<SourceStatus>('/sources/status'),
-    api.get<SyncTaskData>('/sync/tasks' + qs({ page: 1, size: 10 })),
-    api.get<OutboxData>('/admin/outbox' + qs({ page: 1, size: 20 })),
-  ])
+  const [typesData, relationsData, mappingsData, versionsData, statusData, tasksData, outboxData] =
+    await Promise.all([
+      api.get<ModelTypesData>('/model/types'),
+      api.get<ModelRelationsData>('/model/relations'),
+      api.get<ModelMappingsData>('/model/mappings'),
+      api.get<ModelVersionsData>('/model/versions'),
+      api.get<SourceStatus>('/sources/status'),
+      api.get<SyncTaskData>('/sync/tasks' + qs({ page: 1, size: 10 })),
+      api.get<OutboxData>('/admin/outbox' + qs({ page: 1, size: 20 })),
+    ])
   modelTypes.value = typesData
   relations.value = relationsData
   mappings.value = mappingsData
+  versions.value = versionsData
   status.value = statusData
   tasks.value = tasksData
   outbox.value = outboxData
@@ -48,6 +80,135 @@ async function reload(): Promise<void> {
     error.value = ''
   } catch (e) {
     error.value = e instanceof Error ? e.message : '管理数据加载失败'
+  }
+}
+
+/** 有草稿时列表显示草稿内容（含刚新增还没生效的关系），否则显示生效定义。 */
+const relationRows = computed<RelationTypeEditDef[]>(() => {
+  const draft = versions.value?.draft
+  if (draft?.exists && (draft.relations?.length ?? 0) > 0) {
+    return draft.relations as RelationTypeEditDef[]
+  }
+  return relations.value?.relations ?? []
+})
+
+const showingDraft = computed(() => Boolean(versions.value?.draft?.exists))
+const baseMappingVersion = computed(
+  () => versions.value?.activeMappingVersion || relations.value?.mappingVersion || '',
+)
+const objectTypeOptions = computed(() =>
+  (modelTypes.value?.types ?? []).map(item => ({ id: item.id, displayName: item.displayName })),
+)
+const mappingRefs = computed(() =>
+  (mappings.value?.objectMappings ?? [])
+    .map(item => String((item as Record<string, unknown>).objectType ?? ''))
+    .filter(objectType => objectType.length > 0)
+    .map(objectType => `school-source.yaml#${objectType}`),
+)
+
+function openCreate(): void {
+  editing.value = null
+  formErrors.value = []
+  editorOpen.value = true
+}
+
+function openEdit(row: RelationTypeEditDef): void {
+  editing.value = row
+  formErrors.value = []
+  editorOpen.value = true
+}
+
+function closeEditor(): void {
+  editorOpen.value = false
+}
+
+async function submitRelation(value: RelationTypeEditDef): Promise<void> {
+  saving.value = true
+  formErrors.value = []
+  try {
+    const body = { baseMappingVersion: baseMappingVersion.value, operator: OPERATOR, relation: value }
+    const result = editing.value
+      ? await api.put<SaveRelationResult>(
+        `/model/relations/${encodeURIComponent(value.id)}`, body)
+      : await api.post<SaveRelationResult>('/model/relations', body)
+    editorOpen.value = false
+    message.value = result.message
+    error.value = ''
+    await reload()
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'VALIDATION_FAILED') {
+      const data = e.data as ValidationErrorData | null
+      formErrors.value = data?.errors?.length ? data.errors : [e.message]
+    } else {
+      error.value = e instanceof Error ? e.message : '保存关系类型失败'
+    }
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deleteRelation(row: RelationTypeEditDef): Promise<void> {
+  try {
+    const result = await api.del<SaveRelationResult>(
+      `/model/relations/${encodeURIComponent(row.id)}`,
+      { baseMappingVersion: baseMappingVersion.value, operator: OPERATOR, force: false },
+    )
+    message.value = result.message
+    error.value = ''
+    await reload()
+  } catch (e) {
+    if (e instanceof ApiError && (e.code === 'DELETE_IMPACT_CONFIRM' || e.code === 'DELETE_BLOCKED_BY_MAPPING')) {
+      deleteImpact.value = { relationId: row.id, impact: e.data as DeleteImpactData }
+      if (e.code === 'DELETE_BLOCKED_BY_MAPPING') error.value = e.message
+      return
+    }
+    error.value = e instanceof Error ? e.message : '删除关系类型失败'
+  }
+}
+
+async function confirmForceDelete(): Promise<void> {
+  const pending = deleteImpact.value
+  if (!pending) return
+  deleteImpact.value = null
+  try {
+    const result = await api.del<SaveRelationResult>(
+      `/model/relations/${encodeURIComponent(pending.relationId)}`,
+      { baseMappingVersion: baseMappingVersion.value, operator: OPERATOR, force: true },
+    )
+    message.value = result.message
+    error.value = ''
+    await reload()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '删除关系类型失败'
+  }
+}
+
+async function doReset(): Promise<void> {
+  resetting.value = true
+  try {
+    const result = await api.post<SaveRelationResult>('/model/relations/reset', {
+      baseMappingVersion: baseMappingVersion.value,
+      confirm: true,
+      operator: OPERATOR,
+    })
+    resetConfirmOpen.value = false
+    message.value = result.message
+    error.value = ''
+    await reload()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '恢复基线失败'
+  } finally {
+    resetting.value = false
+  }
+}
+
+async function applyDefinition(): Promise<void> {
+  error.value = ''
+  try {
+    await apply.apply(baseMappingVersion.value, OPERATOR)
+    await reload()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '应用定义失败'
   }
 }
 
@@ -98,7 +259,7 @@ onUnmounted(() => {
     <div class="page-head">
       <div>
         <h2>模型与接入管理</h2>
-        <div class="sub">定义与版本可查 · 全量导入 / 对账 / 重建 / 同步任务 / 失败重试（E5、US-07）</div>
+        <div class="sub">定义与版本可查 · 关系类型可在线编辑 · 全量导入 / 对账 / 重建 / 同步任务 / 失败重试（E5、US-07）</div>
       </div>
       <span class="demo-tag">演示数据 / 演示时间</span>
     </div>
@@ -183,11 +344,55 @@ onUnmounted(() => {
     </div>
 
     <div class="card">
-      <h3>关系类型定义（{{ relations?.relations.length ?? 0 }} 条）</h3>
-      <ul class="list-plain">
-        <li v-for="(rel, index) in relations?.relations ?? []" :key="index">{{ fmt(rel) }}</li>
-      </ul>
-      <div v-if="!(relations?.relations ?? []).length" class="empty">暂无关系定义</div>
+      <h3>
+        关系类型定义（{{ relationRows.length }} 条）
+        <span v-if="showingDraft" class="badge warn" style="margin-left:6px">草稿（待生效）</span>
+      </h3>
+
+      <DefinitionVersionPanel
+        :versions="versions"
+        :busy="saving || resetting"
+        :apply-phase="applyPhase"
+        :apply-message="applyMessage"
+        @apply="applyDefinition"
+        @reset="resetConfirmOpen = true"
+      />
+
+      <div class="toolbar" style="margin-top:12px">
+        <button class="primary" @click="openCreate">新增关系类型</button>
+        <span class="spacer"></span>
+        <span class="hint">新增/修改只保存草稿；点「应用到运行时」后本体服务重启加载新定义（约 5–10 秒）。</span>
+      </div>
+
+      <table class="desktop-only">
+        <thead>
+          <tr><th>id</th><th>显示名</th><th>起点 → 终点</th><th>基数</th><th>生成规则</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in relationRows" :key="row.id">
+            <td>{{ row.id }}</td>
+            <td>{{ row.displayName || '—' }}</td>
+            <td>{{ row.fromType || '—' }} → {{ row.toType || '—' }}</td>
+            <td>{{ row.cardinality || '—' }}</td>
+            <td>{{ row.generation?.kind || '—' }}</td>
+            <td>
+              <button @click="openEdit(row)">编辑</button>
+              <button class="danger" style="margin-left:6px" @click="deleteRelation(row)">删除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="mobile-only">
+        <div v-for="row in relationRows" :key="row.id" class="card" style="margin:0 0 8px">
+          <b>{{ row.displayName || row.id }}</b> <span class="badge info">{{ row.id }}</span>
+          <div class="hint">{{ row.fromType || '—' }} → {{ row.toType || '—' }} · {{ row.cardinality || '—' }} · {{ row.generation?.kind || '—' }}</div>
+          <div class="toolbar" style="margin:8px 0 0">
+            <button @click="openEdit(row)">编辑</button>
+            <button class="danger" @click="deleteRelation(row)">删除</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="!relationRows.length" class="empty">暂无关系定义</div>
     </div>
 
     <div class="card">
@@ -229,6 +434,60 @@ onUnmounted(() => {
         </div>
       </div>
       <div v-if="!(outbox?.items ?? []).length" class="empty">暂无 Outbox 事件</div>
+    </div>
+
+    <RelationTypeEditorDialog
+      :open="editorOpen"
+      :relation="editing"
+      :object-types="objectTypeOptions"
+      :mapping-refs="mappingRefs"
+      :saving="saving"
+      :errors="formErrors"
+      @close="closeEditor"
+      @submit="submitRelation"
+    />
+
+    <div v-if="deleteImpact" class="modal-mask" @click.self="deleteImpact = null">
+      <div class="modal">
+        <h3>删除影响确认：{{ deleteImpact?.relationId }}</h3>
+        <p class="hint">{{ deleteImpact?.impact?.hint }}</p>
+        <div v-if="(deleteImpact?.impact?.referencedByMappings?.length ?? 0) > 0">
+          <b>被这些映射引用：</b>
+          <ul class="list-plain">
+            <li v-for="(ref, index) in deleteImpact?.impact?.referencedByMappings ?? []" :key="index">
+              {{ ref.objectType }} · {{ ref.rule }}
+            </li>
+          </ul>
+        </div>
+        <div style="margin-top:8px">
+          <b>受影响对象类型：</b>{{ (deleteImpact?.impact?.impactedObjectTypes ?? []).join('、') || '—' }}
+        </div>
+        <p v-if="(deleteImpact?.impact?.referencedByMappings?.length ?? 0) > 0"
+           class="error-banner" style="margin-top:12px">
+          该关系仍被来源映射引用：删除后生效定义会在启动校验时整体非法（服务回退打包基线、改动不生效）。
+          请先在 school-source.yaml 中移除对应规则再删除；确认仍要尝试可点「强制删除」，服务会给出明确拒绝原因。
+        </p>
+        <div class="toolbar" style="margin-top:12px; margin-bottom:0">
+          <span class="spacer"></span>
+          <button @click="deleteImpact = null">取消</button>
+          <button class="danger" @click="confirmForceDelete">强制删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="resetConfirmOpen" class="modal-mask" @click.self="resetConfirmOpen = false">
+      <div class="modal">
+        <h3>恢复打包基线</h3>
+        <p>将删除全部在线改动（{{ relationRows.length }} 条关系回到打包基线），并需要「应用到运行时」后生效。</p>
+        <p class="hint">在线改动文件会先备份为 <code>relation-types.yaml.bak.*</code>，可人工找回。</p>
+        <div class="toolbar" style="margin-top:12px; margin-bottom:0">
+          <span class="spacer"></span>
+          <button @click="resetConfirmOpen = false" :disabled="resetting">取消</button>
+          <button class="danger" @click="doReset" :disabled="resetting">
+            {{ resetting ? '处理中…' : '确认恢复基线' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

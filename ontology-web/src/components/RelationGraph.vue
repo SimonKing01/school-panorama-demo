@@ -43,8 +43,26 @@ function yOf(globalId: string): number {
   return positions.value[globalId]?.y ?? H / 2
 }
 
-function labelOf(node: { title: string; type: string }): string {
-  return (node.title || node.type || '').slice(0, 6)
+/**
+ * 节点标签：不再按字符数硬裁（「明理楼 101」曾被截成「明理楼 10」）。
+ * 规则：标签越长字号越小（12/11/10/9），10 个字符以内完整显示；
+ * 更长的才用「…」省略，完整文案见 SVG &lt;title&gt; 悬停提示。
+ */
+const MAX_FULL_CHARS = 10
+const ELLIPSIS_CHARS = 9
+
+interface NodeLabel {
+  text: string
+  full: string
+  fontSize: number
+}
+
+function labelOf(node: { title: string; type: string }): NodeLabel {
+  const full = (node.title || node.type || '').trim()
+  const length = full.length
+  const fontSize = length <= 4 ? 12 : length <= 6 ? 11 : length <= 8 ? 10 : 9
+  const text = length <= MAX_FULL_CHARS ? full : full.slice(0, ELLIPSIS_CHARS) + '…'
+  return { text, full, fontSize }
 }
 </script>
 
@@ -82,9 +100,9 @@ function labelOf(node: { title: string; type: string }): string {
           :x="xOf(node.globalId)"
           :y="yOf(node.globalId) + 4"
           text-anchor="middle"
-          font-size="11"
+          :font-size="labelOf(node).fontSize"
           fill="#1f2937"
-        >{{ labelOf(node) }}</text>
+        ><title>{{ labelOf(node).full }}</title>{{ labelOf(node).text }}</text>
       </g>
     </svg>
     <div class="hint" style="margin-top:6px">

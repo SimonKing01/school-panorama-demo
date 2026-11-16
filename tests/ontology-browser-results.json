@@ -1,0 +1,598 @@
+{
+  "time": "2026-11-16T05:17:47.722Z",
+  "base": "http://127.0.0.1:5181",
+  "bases": {
+    "bizApi": "http://127.0.0.1:18080/api",
+    "bizWeb": "http://127.0.0.1:5180",
+    "ontologyApi": "http://127.0.0.1:18090",
+    "ontologyWeb": "http://127.0.0.1:5181"
+  },
+  "selected": [
+    "pages_desktop",
+    "pages_mobile",
+    "model_driven_views",
+    "global_search",
+    "auto_update_5s",
+    "refresh_retry",
+    "business_jump",
+    "source_freshness"
+  ],
+  "summary": {
+    "total": 71,
+    "passed": 69,
+    "failed": 0,
+    "skipped": 2,
+    "hasSkipped": true
+  },
+  "consoleErrors": [],
+  "results": [
+    {
+      "item": "桌面·全景总览 页面可进入且展示中文内容（5/5 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=7983",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·全景总览 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":1440,\"innerWidth\":1440,\"bodyWidth\":1440}",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·通用对象探索器 页面可进入且展示中文内容（5/5 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=541",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·通用对象探索器 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":1440,\"innerWidth\":1440,\"bodyWidth\":1440}",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·关系探索（列表 + 图） 页面可进入且展示中文内容（3/3 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/relations 命中=关系/图/展开 文本长度=455",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·关系探索（列表 + 图） 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":1440,\"innerWidth\":1440,\"bodyWidth\":1440}",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·变化与影响 页面可进入且展示中文内容（4/4 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/changes 命中=变化/影响/来源/时间 文本长度=12432",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·变化与影响 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":1440,\"innerWidth\":1440,\"bodyWidth\":1440}",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·模型与接入管理 页面可进入且展示中文内容（6/6 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=10921",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·模型与接入管理 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":1440,\"innerWidth\":1440,\"bodyWidth\":1440}",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·关系探索同时提供关系列表与关系图（svg=0）",
+      "status": "passed",
+      "passed": true,
+      "detail": "文本命中=true, svg=0",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面·关系图具备展开层数/节点上限控件（1 层 2 层）",
+      "status": "passed",
+      "passed": true,
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 262\n已确认版本 262\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "通用对象详情可打开（由 #/detail?globalId= 动态渲染）",
+      "status": "passed",
+      "passed": true,
+      "detail": "route=/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1 / URL=http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "详情含当前属性 / 动态结果 / 正反向关联 / 最近变化 / 来源与映射",
+      "status": "passed",
+      "passed": true,
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 262\n已确认版本 262\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-11-16T13:16:38\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "详情附「返回原业务对象」入口",
+      "status": "passed",
+      "passed": true,
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 262\n已确认版本 262\n演示时间 2026-11-16T10:15:",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "桌面对象详情无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":1440,\"innerWidth\":1440,\"bodyWidth\":1440}",
+      "group": "桌面",
+      "case": "pages_desktop"
+    },
+    {
+      "item": "手机·全景总览 页面可进入且展示中文内容（5/5 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=7983",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·全景总览 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":390,\"innerWidth\":390,\"bodyWidth\":390}",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·通用对象探索器 页面可进入且展示中文内容（5/5 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=553",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·通用对象探索器 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":390,\"innerWidth\":390,\"bodyWidth\":390}",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·关系探索（列表 + 图） 页面可进入且展示中文内容（3/3 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/relations 命中=关系/图/展开 文本长度=402",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·关系探索（列表 + 图） 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":390,\"innerWidth\":390,\"bodyWidth\":390}",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·变化与影响 页面可进入且展示中文内容（4/4 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/changes 命中=变化/影响/来源/时间 文本长度=12432",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·变化与影响 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":390,\"innerWidth\":390,\"bodyWidth\":390}",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·模型与接入管理 页面可进入且展示中文内容（6/6 个关键词）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=11016",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·模型与接入管理 无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":890,\"innerWidth\":890,\"bodyWidth\":890}",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·关系探索同时提供关系列表与关系图（svg=0）",
+      "status": "passed",
+      "passed": true,
+      "detail": "文本命中=true, svg=0",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机·关系图具备展开层数/节点上限控件（1 层 2 层）",
+      "status": "passed",
+      "passed": true,
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 262\n已确认版本 262\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机端导航可见可点",
+      "status": "passed",
+      "passed": true,
+      "detail": "nav 命中=true",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机端搜索输入框可见",
+      "status": "passed",
+      "passed": true,
+      "detail": "",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机端全局搜索可直接查到对象",
+      "status": "passed",
+      "passed": true,
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机端搜索结果无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":390,\"innerWidth\":390,\"bodyWidth\":390}",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "手机端对象详情无横向溢出",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"scrollWidth\":390,\"innerWidth\":390,\"bodyWidth\":390}",
+      "group": "手机",
+      "case": "pages_mobile"
+    },
+    {
+      "item": "GET /model/types 返回类型定义（listFields / detailFields / searchableFields）",
+      "status": "passed",
+      "passed": true,
+      "detail": "已注册类型=school/class/student/teacher/course/lessonSession/classroom；student.listFields=[{\"name\":\"code\",\"displayName\":\"学号编号\",\"type\":\"string\"},{\"name\":\"name\",\"displayName\":\"姓名\",\"type\":\"string\"},{\"name\":\"gender",
+      "group": "模型驱动",
+      "case": "model_driven_views"
+    },
+    {
+      "item": "列表 items[].attributes 为对象字典（列表组件按 listFields 动态渲染）",
+      "status": "passed",
+      "passed": true,
+      "detail": "total=32 / 类型=object / keys=code,name,gender,className,studentNo,enrollDate,schoolName,guardianPhone",
+      "group": "模型驱动",
+      "case": "model_driven_views"
+    },
+    {
+      "item": "详情 attributes 为数组 [{name,displayName,value,origin,provider}]（详情组件按数组渲染）",
+      "status": "passed",
+      "passed": true,
+      "detail": "类型=array(9)；样例={\"name\":\"code\",\"displayName\":\"学号编号\",\"value\":\"STU-0001\",\"origin\":\"SOURCE\"}",
+      "group": "模型驱动",
+      "case": "model_driven_views"
+    },
+    {
+      "item": "详情属性带 origin，可区分 SOURCE / DERIVED 与来源追溯",
+      "status": "passed",
+      "passed": true,
+      "detail": "origins=SOURCE/DERIVED",
+      "group": "模型驱动",
+      "case": "model_driven_views"
+    },
+    {
+      "item": "通用对象探索器按定义渲染列表（学生列表可见且有行）",
+      "status": "passed",
+      "passed": true,
+      "detail": "行数=21 / 文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 262\n已确认版本 262\n演示时间 2026-11-16T10:15:",
+      "group": "模型驱动",
+      "case": "model_driven_views"
+    },
+    {
+      "item": "列表列名来自 /model/types 的 listFields（模型驱动，无类型专用分支）",
+      "status": "passed",
+      "passed": true,
+      "detail": "定义列=学号编号/姓名/性别/所在班级/所在学校 / 页面命中=学号编号/姓名/性别/所在班级/所在学校",
+      "group": "模型驱动",
+      "case": "model_driven_views"
+    },
+    {
+      "item": "同一套通用详情路由可打开（#/detail?globalId=）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1",
+      "group": "模型驱动",
+      "case": "model_driven_views"
+    },
+    {
+      "item": "详情页展示属性区 + 来源/映射 + 动态结果（详情数组驱动）",
+      "status": "passed",
+      "passed": true,
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 262\n已确认版本 262\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-11-16T13:16:38\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
+      "group": "模型驱动",
+      "case": "model_driven_views"
+    },
+    {
+      "item": "列表与详情由同一套通用路由渲染（URL 无 student/classroom 等类型专用路径）",
+      "status": "passed",
+      "passed": true,
+      "detail": "http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1",
+      "group": "模型驱动",
+      "case": "model_driven_views"
+    },
+    {
+      "item": "总览页提供全局搜索入口",
+      "status": "passed",
+      "passed": true,
+      "detail": "无需沿学校→班级→学生逐级进入",
+      "group": "交互",
+      "case": "global_search"
+    },
+    {
+      "item": "按姓名全局搜索直达学生 陈一诺",
+      "status": "passed",
+      "passed": true,
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 262\n已确认",
+      "group": "交互",
+      "case": "global_search"
+    },
+    {
+      "item": "点击搜索结果可直达通用对象详情（#/detail?globalId=）",
+      "status": "passed",
+      "passed": true,
+      "detail": "clicked=true URL=http://127.0.0.1:5181/#/detail?globalId=gid:school-panorama:student:1",
+      "group": "交互",
+      "case": "global_search"
+    },
+    {
+      "item": "接口层：教室可被全局搜索命中（/model/types 含 classroom）",
+      "status": "passed",
+      "passed": true,
+      "detail": "classroom 定义=true / 命中 1 条 / 关键词=明理楼 101",
+      "group": "交互",
+      "case": "global_search"
+    },
+    {
+      "item": "页面层：教室可被全局搜索直达（无需教室专用页面）",
+      "status": "passed",
+      "passed": true,
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本",
+      "group": "交互",
+      "case": "global_search"
+    },
+    {
+      "item": "教室打开的是同一套通用对象详情（非教室专用页面）",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3Aclassroom%3A1",
+      "group": "交互",
+      "case": "global_search"
+    },
+    {
+      "item": "教室通用详情含来源/映射/关联对象",
+      "status": "passed",
+      "passed": true,
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:16:38\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 262\n已确认版本 262\n演示时间 ",
+      "group": "交互",
+      "case": "global_search"
+    },
+    {
+      "item": "前置：恢复初始演示数据且本体服务已同步",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200",
+      "group": "交互",
+      "case": "auto_update_5s"
+    },
+    {
+      "item": "前置：重建投影以清掉历史失效边（干净观察现场）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200",
+      "group": "交互",
+      "case": "auto_update_5s"
+    },
+    {
+      "item": "观察视角初始的「授课教师」为 张明远（旧状态）",
+      "status": "passed",
+      "passed": true,
+      "detail": "授课教师=张明远 来源直接存在；（只读当前属性，不读整页文本：页面底部「最近变化」会保留历史教师名）",
+      "group": "交互",
+      "case": "auto_update_5s"
+    },
+    {
+      "item": "外部（原业务）完成一次成功调课",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200",
+      "group": "交互",
+      "case": "auto_update_5s"
+    },
+    {
+      "item": "已打开视角①对象详情在 5 秒内自动更新",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"commitMs\":13,\"detailSec\":0.97,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
+      "group": "交互",
+      "case": "auto_update_5s"
+    },
+    {
+      "item": "已打开视角②变化与影响在 5 秒内自动更新",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"commitMs\":13,\"detailSec\":0.97,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
+      "group": "交互",
+      "case": "auto_update_5s"
+    },
+    {
+      "item": "从业务提交成功到多视角全部更新 ≤5 秒（记录真实耗时与条件）",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"commitMs\":13,\"detailSec\":0.97,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
+      "group": "交互",
+      "case": "auto_update_5s"
+    },
+    {
+      "item": "前置：恢复初始演示数据",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200",
+      "group": "交互",
+      "case": "refresh_retry"
+    },
+    {
+      "item": "观察视角已打开（注入失败前为旧数据）",
+      "status": "passed",
+      "passed": true,
+      "detail": "route=/detail?globalId=gid%3Aschool-panorama%3AlessonSession%3A3 授课教师=张明远 来源直接存在",
+      "group": "交互",
+      "case": "refresh_retry"
+    },
+    {
+      "item": "业务调课提交成功（用于触发一次版本刷新）",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200",
+      "group": "交互",
+      "case": "refresh_retry"
+    },
+    {
+      "item": "注入刷新失败后自动重试、不因提前记住新版本号停留旧数据",
+      "status": "skipped",
+      "passed": null,
+      "detail": "未能命中本体只读请求（injected=0），无法构造刷新失败；需主理人确认前端实际请求前缀（期望含 /api/ontology/...）。当前页面 URL=http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3AlessonSession%3A3",
+      "group": "交互",
+      "case": "refresh_retry"
+    },
+    {
+      "item": "接口提供 backToBusinessUrl，指向原业务入口 :5180",
+      "status": "passed",
+      "passed": true,
+      "detail": "backToBusinessUrl=http://localhost:5180/objects?type=student",
+      "group": "交互",
+      "case": "business_jump"
+    },
+    {
+      "item": "详情页存在「返回原业务对象 / 去调课」入口",
+      "status": "passed",
+      "passed": true,
+      "detail": "元素=true / 文本命中=true",
+      "group": "交互",
+      "case": "business_jump"
+    },
+    {
+      "item": "业务按钮指向原业务页面（沿用原有校验，不在平台内改投影）",
+      "status": "passed",
+      "passed": true,
+      "detail": "href=http://localhost:5180/objects?type=student",
+      "group": "交互",
+      "case": "business_jump"
+    },
+    {
+      "item": "平台页面为只读展示（无平台内写入入口伪装业务成功）",
+      "status": "passed",
+      "passed": true,
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:17:43\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 267\n已确认版本 267\n演示时间 2026-11-16T10:15:",
+      "group": "交互",
+      "case": "business_jump"
+    },
+    {
+      "item": "接口 /sources/status 可读且含 sourceUp / status / lastSuccessSyncAt / demoTime",
+      "status": "passed",
+      "passed": true,
+      "detail": "{\"sourceId\":\"school-panorama\",\"sourceUp\":true,\"status\":\"SYNCED\",\"statusLabel\":\"已同步（新鲜）\",\"lastSuccessSyncAt\":\"2026-11-16T13:17:43\",\"demoTime\":\"2026-11-16T10:15:00\",\"snapshotRevision\":280,\"currentSourceRevision\":280,\"pendingCount\":0,\"processingCount\":0,\"errorCou",
+      "group": "状态",
+      "case": "source_freshness"
+    },
+    {
+      "item": "顶栏/页面显示最后成功同步时间与数据新鲜度",
+      "status": "passed",
+      "passed": true,
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T13:17:43\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 267\n已确认版本 267\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-11-16T13:17:43\n待处理 0\n立即重试刷新\n全景总览\n对象/关系规模",
+      "group": "状态",
+      "case": "source_freshness"
+    },
+    {
+      "item": "两类时间分开显示（演示时间 vs 最后成功同步时间）",
+      "status": "passed",
+      "passed": true,
+      "detail": "演示时间=true 同步时间=true",
+      "group": "状态",
+      "case": "source_freshness"
+    },
+    {
+      "item": "原业务停机时「来源不可用」标记与仍可查已同步对象",
+      "status": "skipped",
+      "passed": null,
+      "detail": "sourceUp=true（仍为可用）；需主理人先停止原业务服务(backend)后重跑 --case source_freshness。接口侧契约由 --case source_unavailable 覆盖",
+      "group": "状态",
+      "case": "source_freshness"
+    },
+    {
+      "item": "可区分四态与新鲜度（状态标签/待处理数/错误与重试入口可见）",
+      "status": "passed",
+      "passed": true,
+      "detail": "status=SYNCED / statusLabel=已同步（新鲜）",
+      "group": "状态",
+      "case": "source_freshness"
+    },
+    {
+      "item": "验收结束恢复初始演示数据",
+      "status": "passed",
+      "passed": true,
+      "detail": "HTTP 200",
+      "group": "收尾",
+      "case": "cleanup"
+    },
+    {
+      "item": "浏览器控制台无 JS 运行错误",
+      "status": "passed",
+      "passed": true,
+      "detail": "无",
+      "group": "收尾",
+      "case": "cleanup"
+    }
+  ]
+}

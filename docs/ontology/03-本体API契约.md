@@ -317,6 +317,8 @@ Content-Type: application/json;charset=UTF-8
   ]}}
 ```
 
+> 边集合语义（`/relations` 与 `/graph` 一致）：`depth=1` 只返回**中心对象自己**的边（`direction=forward` 取 `from=中心`，`reverse` 取 `to=中心`，`both` 取并集）；`depth=2` 返回「中心 ∪ 一跳邻居」的边。结果按 `relationId` 去重，`total` 为去重后的真实条数；`depth=2` 时中心自身的边排在最前。
+
 #### `GET /api/ontology/objects/{globalId}/graph?depth=1|2&limit=50&page=`
 关系图数据（Q5：1/2 层 + 节点上限，默认 50，超限分页）。
 
@@ -479,6 +481,50 @@ Content-Type: application/json;charset=UTF-8
 
 #### `POST /api/ontology/admin/retry?eventId=9f1c...`
 → `{ "code":"OK","data":{ "eventId":"...","status":"PENDING","attempts":0,"message":"已重新排队" } }`（供 E5「失败重试入口」与验收三注入重复/乱序事件）。
+
+---
+
+### 2.14 关系类型在线编辑（增量，2026-11-16 实施）
+
+> 详见 [`07-在线编辑关系类型-增量设计.md`](./07-在线编辑关系类型-增量设计.md)。**既有 `GET /model/relations` 结构不变，只新增字段**：
+> `generation` 除原有 `kind/sourceTable/fkColumn/targetTable/rule` 外，补齐 `distinct/sourceColumn/joinTable/joinFilterColumn/joinSelectColumn/validFromColumns`（编辑表单需要完整规则，否则「打开一个联表关系再保存」会抹掉联表参数）。
+
+所有写端点请求体必带 `baseMappingVersion`（乐观版本，等于当前生效版本，否则 409 `VERSION_CONFLICT`）；`operator` 缺省「演示管理员」，`note` 缺省按操作自动生成。
+保存 ≠ 生效：写 `<definition-dir>/relation-types.yaml` 并登记 `PENDING`，点「应用到运行时」后由本体服务受控重启加载。
+
+| 端点 | 说明 | 主要错误码 |
+| --- | --- | --- |
+| `POST /model/relations` | 新增一条（保存草稿） | 400 `VALIDATION_FAILED`（逐条中文 `data.errors[]`）、409 `VERSION_CONFLICT` / `TASK_CONFLICT` / `DEFINITION_LOCKED` |
+| `PUT /model/relations/{id}` | 修改；**id 不可改名** | 同上 + 404 `NOT_FOUND` |
+| `DELETE /model/relations/{id}` | 删除；被映射引用时先要 `force` | 409 `DELETE_IMPACT_CONFIRM`（带 `referencedByMappings/impactedObjectTypes/hint`）；被引用时带 `force=true` 返回 409 `DELETE_BLOCKED_BY_MAPPING`（见下） |
+| `POST /model/relations/reset` | 恢复打包基线（删 overlay） | 400 `BAD_REQUEST`（`confirm!=true`） |
+| `POST /model/relations/apply` | 应用到运行时 | **202** `{applying:true,...}`（自重启开启）/ 200 `{pendingRestart:true}`（关闭时降级）/ 200 `{noChange:true}` / 409 `APPLY_IN_PROGRESS` / `VERSION_CONFLICT` / `TASK_CONFLICT` |
+| `GET /model/versions` | 生效版本 + 草稿 + 上次回退 + 时间线 | — |
+
+**删除被引用关系的边界（与 07 文档 §6.3 的差异，已回报主理人）**：`school-source.yaml` 里的 `relationRules/joinRelationRules` 会反向校验「关系类型必须已定义」，且重建时 `SnapshotBuilder` 会 `registry.relationOf(rule.relationType)`；因此删掉一个**仍被来源映射引用**的关系类型会让生效定义在下次启动校验时整体非法（服务回退基线、改动静默失效）。故本实现：未带 `force` 返回影响清单；带 `force=true` 返回 409 `DELETE_BLOCKED_BY_MAPPING` 并说明「需先在来源映射中移除对应规则」。在线新增（未被映射引用）的关系可正常删除。
+
+**双闸门**：打包基线（classpath 三份 YAML）非法 → `IllegalStateException` 拒绝启动（口径不变）；overlay 非法 → 隔离为 `relation-types.yaml.invalid.<ts>` + 写 `ont_error_log(phase=OVERLAY_FALLBACK)` + `GET /model/versions.lastFallback` 暴露原因 + 回退基线照常启动，**绝不锁死**。
+
+#### 2.14.1 版本与操作人留存（P6 缺陷修复，2026-11-16）
+
+**问题**：保存时传了 `operator/note`，但服务重启激活时被 `system / startup-overlay` 覆盖，`ont_mapping_version` 与 `ont_model_def` 里查不到「这一版是谁改的、长什么样」。
+
+**修法（对契约只做字段新增，不改既有字段名与结构）**：
+
+| 时机 | 落库动作 |
+| --- | --- |
+| `POST/PUT/DELETE /model/relations*` 成功 | `ont_mapping_version` 写一行 `status=PENDING`，`mapping_version`=草稿哈希，`operator/note` 取请求体（缺省「演示管理员」/自动文案），`definition_source=OVERLAY`。**同一草稿重复保存覆盖同一行**（唯一键 `(source_id, mapping_version)`），不堆 PENDING |
+| `POST /model/relations/reset` 成功 | 同上登记一行 PENDING，但 `mapping_version`=打包基线哈希、`definition_source=BASELINE`，`operator/note` 取请求体。若该版本正好是当前 ACTIVE（例如草稿未应用就恢复），保持 `ACTIVE` 不变，只更新署名——避免出现「一行 ACTIVE 都没有」的空窗 |
+| 启动激活（`DefinitionActivationRunner` @Order 15） | 若该版本行**已有人写的 operator** → 原地把 `PENDING` 转 `ACTIVE` 并**原样保留 operator/note**；只有该行不存在或 operator 为 `system` 时，才记 `system` + `startup-baseline` / `startup-overlay` / `startup-overlay-fallback` |
+| `MappingVersionRecorder` @Order 20 | 幂等补登记：署名同样由版本行解析（不是固定 `system`），对已有人工署名的行只更新状态/哈希，绝不覆盖 operator/note |
+| 每次激活 | `ont_model_def` 除既有的 `object-types` / `relation-types` / `source-mapping` 三行「当前生效内容」外，另按版本留一行 `def_key = <type>@<mapping_version>`（`ON CONFLICT DO NOTHING`），使「按版本号回看那一版长什么样」成立；既有 `def_key` 行保持不变，读取方无感 |
+
+`GET /model/versions` 新增字段（只增不改）：
+- 顶层 `activeOperator` / `activeNote`：当前生效版本是谁签字生效的；
+- `draft.savedBy` / `draft.savedNote`：谁在什么时候（`draft.savedAt`）保存的这份待生效草稿；
+- `versions[]` 每行继续提供 `operator` / `note` / `definitionSource` / `activatedAt`。
+
+无人工参与的首启仍写 `system / startup-baseline`；`reset → 应用` 之后回到基线的那条 `ACTIVE` 记录，operator 是**执行恢复的人**，不回退成 `system`。
 
 ---
 

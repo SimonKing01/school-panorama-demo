@@ -9,6 +9,8 @@ import com.school.ontology.core.sync.RebuildService;
 import com.school.ontology.core.sync.SyncTaskService;
 import com.school.ontology.repository.OntologyRepository;
 import com.school.ontology.repository.SourceOutboxRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +32,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/ontology")
 public class SyncAdminController {
+
+    /** 解析业务响应体用：静态常量避免每次重试都新建（ObjectMapper 线程安全）。 */
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final SyncTaskService syncTaskService;
     private final ReconcileService reconcileService;
@@ -147,31 +152,77 @@ public class SyncAdminController {
      * 由业务侧把 DEAD/FAILED 事件重新排队（status=PENDING、attempts=0），
      * 再由业务投递器按原有 revision 重投；底座返回 03 契约 §2.13 约定的
      * {@code status:"PENDING", attempts:0, message:"已重新排队"}。
-     * 业务服务不可用时返回明确的中文错误，不静默假装成功。
+     *
+     * <p>三类结果严格区分，避免把业务错误误报成「来源不可用」：</p>
+     * <ul>
+     *   <li>连接失败 / 超时 / 无响应 → {@code SOURCE_UNAVAILABLE}（这才是真的不可用）；</li>
+     *   <li>收到 HTTP 响应且响应体带业务 {@code code}（如事件不存在 {@code NOT_FOUND}）
+     *       → <b>原样透传</b>业务 code/message（有 conflicts 一并透传），HTTP 统一 200；</li>
+     *   <li>收到 2xx 且是成功体 → 回显业务返回的 status/attempts/message。</li>
+     * </ul>
      */
     @PostMapping("/admin/retry")
     public OntApiResponse<Map<String, Object>> adminRetry(@RequestParam String eventId) {
         String url = businessApiBase.replaceAll("/+$", "") + "/admin/retry?eventId="
                 + URLEncoder.encode(eventId, StandardCharsets.UTF_8);
+        HttpResponse<String> response;
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofSeconds(3))
                     .POST(HttpRequest.BodyPublishers.noBody())
                     .build();
-            HttpResponse<String> response = adminHttpClient.send(request,
+            response = adminHttpClient.send(request,
                     HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                return OntApiResponse.ok(Resp.map(
-                        "eventId", eventId, "status", "PENDING", "attempts", 0,
-                        "message", "已重新排队（业务侧已回写 Outbox 状态，底座只读）"));
-            }
-            return OntApiResponse.fail("SOURCE_UNAVAILABLE",
-                    "业务服务不可用，无法重放事件（HTTP " + response.statusCode() + "）");
         } catch (Exception e) {
             String reason = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             return OntApiResponse.fail("SOURCE_UNAVAILABLE",
                     "业务服务不可用，无法重放事件：" + reason);
         }
+        // 到这里业务服务是"活的"：即使 HTTP 4xx/5xx 也是业务语义，必须透传而不是报不可用。
+        Map<String, Object> body = parseJsonObject(response.body());
+        String businessCode = textOf(body.get("code"));
+        if (businessCode != null) {
+            String message = textOf(body.get("message"));
+            Map<String, Object> data = null;
+            if (body.get("conflicts") != null) {
+                data = Resp.map("conflicts", body.get("conflicts"));
+            }
+            return new OntApiResponse<>(businessCode, data,
+                    message == null || message.isBlank()
+                            ? "业务侧拒绝重放（HTTP " + response.statusCode() + "）" : message);
+        }
+        if (response.statusCode() >= 200 && response.statusCode() < 300) {
+            return OntApiResponse.ok(Resp.map(
+                    "eventId", eventId,
+                    "status", body.getOrDefault("status", "PENDING"),
+                    "attempts", body.getOrDefault("attempts", 0),
+                    "message", body.getOrDefault("message",
+                            "已重新排队（业务侧已回写 Outbox 状态，底座只读）")));
+        }
+        return OntApiResponse.fail("SOURCE_ERROR",
+                "业务服务返回异常状态（HTTP " + response.statusCode() + "）："
+                        + (response.body() == null ? "" : response.body()));
+    }
+
+    /** 解析业务响应体；非 JSON 或空体一律当空对象，绝不因为解析失败把业务错误当网络错误。 */
+    private static Map<String, Object> parseJsonObject(String body) {
+        if (body == null || body.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return JSON.readValue(body, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    private static String textOf(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        return text.isEmpty() ? null : text;
     }
 
     private void rejectRunningTask() {

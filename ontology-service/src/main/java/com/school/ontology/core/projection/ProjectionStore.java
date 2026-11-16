@@ -58,6 +58,22 @@ public interface ProjectionStore {
 
     List<RelationInstance> relations();
 
+    /**
+     * 以该对象为起点的当前有效关系（active=true）。
+     *
+     * <p>供「关系增加/解除」在落库时由底座自行计算：来源系统只上报对象属性 diff，
+     * 不应该也不需要知道本体关系类型，因此差集必须从投影的真实前后状态推出。</p>
+     */
+    List<RelationInstance> activeRelationsFrom(String globalId);
+
+    /**
+     * 以该对象为终点的当前有效关系（active=true）。
+     *
+     * <p>墓碑场景要连入边一起进入「已解除关系」，否则「对象删除后有效关系被清理」
+     * 这件事在变化历史里就缺少可解释证据。</p>
+     */
+    List<RelationInstance> activeRelationsTo(String globalId);
+
     long changeHistoryCount();
 
     long processedEventCount();
