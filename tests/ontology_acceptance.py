@@ -960,6 +960,19 @@ def verify_reconcile_fix(ctx):
                 "changeHistoryNote=%s；/changes 中未检出 origin=RECONCILE 明细，"
                 "按 03 契约 §2.8 注释/§2.11 changeHistoryNote 佐证" % note[:200])
 
+    # 防回归断言（展示缺陷 A）：最新一条 RECONCILE 记录的 FIELD_DIFF 必须是字段级真实差异
+    # （label / before / after 齐全且非空），不再是无 label 的「attributes」占位结构。
+    if rec_items:
+        latest = max(rec_items, key=lambda it: int(it.get("changeId") or 0))
+        fd = [d for d in (latest.get("diff") or []) if d.get("kind") == "FIELD_DIFF"]
+        good = bool(fd) and all(
+            d.get("label") and d.get("before") is not None and d.get("after") is not None
+            for d in fd)
+        r.check("对账 FIELD_DIFF 为字段级真实差异（label/before/after 非空）", good,
+                "最新 RECONCILE 记录 changeId=%s / FIELD_DIFF %d 条 / 样例=%s" %
+                (latest.get("changeId"), len(fd),
+                 json.dumps((fd or [{}])[0], ensure_ascii=False)[:220]))
+
     again = c.onto("POST", "/reconcile", {"dryRun": False})
     ad = again.data or {}
     r.check("对账可重复执行（第二次无新增字段差异）",

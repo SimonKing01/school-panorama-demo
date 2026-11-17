@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { fmt, type ChangeItem } from '../types'
+import { computed } from 'vue'
+import { fmt, type ChangeItem, type DiffEntry } from '../types'
 
-defineProps<{ item: ChangeItem }>()
+const props = defineProps<{ item: ChangeItem }>()
 
 function roleLabel(role: string): string {
   const map: Record<string, string> = {
@@ -24,6 +25,15 @@ function originLabel(origin: string): string {
   return map[origin] ?? origin
 }
 
+/** 对账/重建来源的中文动作词：按 diff 条目的 kind 映射，未知 kind 回退 note。 */
+const DIFF_ACTIONS: Record<string, string> = {
+  MISSING: '投影缺失，已补建对象与关系',
+  ORPHAN: '来源已无，已墓碑化',
+  RELATION_DIFF: '关系与来源不一致，已按稳定 ID 重建',
+  FIELD_DIFF: '属性快照与来源不一致，已修正',
+  FIELD_DIFF_SUMMARY: '属性快照与来源不一致，已修正（超出展示上限部分见备注）',
+}
+
 /**
  * 关系条目的人类可读文案：底座写入的是
  * {relationId, relationType, displayName, fromGlobalId, fromTitle, toGlobalId, toTitle, reason}，
@@ -42,6 +52,68 @@ function fmtRelation(rel: Record<string, unknown>): string {
   const arrow = `${from} → ${to}`
   return type ? `${name}：${arrow}（关系类型 ${type}）` : `${name}：${arrow}`
 }
+
+/**
+ * 字段级形态判定（缺陷 A 修复核心）：事件来源与对账新结构都是字段级，
+ * 判据是「有 label 或 before/after 任一存在」。绝不允许把缺失这三者的条目
+ * 渲染成「： （空）→ （空）」的空行。
+ */
+function isFieldDiff(entry: DiffEntry): boolean {
+  return Boolean(entry.label) || entry.before !== undefined || entry.after !== undefined
+}
+
+/** 对象级清单的动作词：kind 映射 → note → 通用兜底，逐级回退。 */
+function diffAction(entry: DiffEntry): string {
+  if (entry.kind && DIFF_ACTIONS[entry.kind]) return DIFF_ACTIONS[entry.kind]
+  const note = typeof entry.note === 'string' ? entry.note.trim() : ''
+  return note || '已按来源修正'
+}
+
+/** 对象级条目的备注：note 存在且与动作词不同才展示，避免重复文案。 */
+function diffNote(entry: DiffEntry): string {
+  const note = typeof entry.note === 'string' ? entry.note.trim() : ''
+  return note && note !== diffAction(entry) ? note : ''
+}
+
+/** 兜底文案：既无字段级三件套、又无 globalId/note 的历史脏数据。 */
+const NO_DETAIL_TEXT = '（此记录未提供可展示的差异明细）'
+
+/**
+ * 差异条目里出现的不同对象数（缺陷 A4）：对账修复一次可能涉及几十个对象，
+ * 「本身变化对象」只展示 primaryGid 一个，>1 时需要明确标注，避免误导。
+ */
+const distinctDiffObjects = computed(() => {
+  const gids = new Set<string>()
+  for (const entry of props.item.diff ?? []) {
+    if (typeof entry.globalId === 'string' && entry.globalId) gids.add(entry.globalId)
+  }
+  return gids.size
+})
+
+/**
+ * 可展示的差异条目（缺陷 A5，历史数据兜底）。
+ *
+ * 早期对账记录里混着「前后值完全相同」的条目：投影从 JSONB 反序列化的数值是 Long、
+ * 按来源重算得到的是 Integer，Objects.equals 判为不等，但序列化后看起来一模一样
+ * （典型形态 `studentCount：8 → 8`）。这类条目没有任何信息量，只会让人怀疑系统坏了。
+ * 后端已修正产生逻辑，但**已落库的历史记录无法重写**（审计只增不减），因此在此过滤掉。
+ */
+const visibleDiff = computed(() => {
+  const all = props.item.diff ?? []
+  return all.filter((entry) => {
+    if (entry.before === undefined || entry.after === undefined) return true
+    if (entry.before === entry.after) return false
+    if (typeof entry.before !== 'object' && typeof entry.after !== 'object') {
+      return String(entry.before) !== String(entry.after)
+    }
+    return true
+  })
+})
+
+/** 原始有差异条目但全部无实质变化时的提示（避免区块整块消失让人以为丢数据）。 */
+const onlyNoopDiff = computed(
+  () => (props.item.diff ?? []).length > 0 && visibleDiff.value.length === 0,
+)
 </script>
 
 <template>
@@ -50,6 +122,7 @@ function fmtRelation(rel: Record<string, unknown>): string {
       <b>#{{ item.changeId }} · {{ item.changeKind }}</b>
       <span :class="'badge ' + (item.origin === 'EVENT' ? 'info' : 'warn')">{{ originLabel(item.origin) }}</span>
       <span class="hint">本身变化对象：{{ item.selfObject?.title || item.selfObject?.globalId || '—' }}</span>
+      <span v-if="distinctDiffObjects > 1" class="hint">（本记录涉及 {{ distinctDiffObjects }} 个对象）</span>
     </div>
 
     <div class="grid cols-2" style="margin-top:10px">
@@ -72,10 +145,23 @@ function fmtRelation(rel: Record<string, unknown>): string {
 
     <div v-if="(item.diff ?? []).length" style="margin-top:10px">
       <b>属性前后差异</b>
-      <ul class="list-plain">
-        <li v-for="(entry, index) in item.diff ?? []" :key="index">
-          {{ entry.label }}：<span class="badge muted">{{ fmt(entry.before) }}</span>
-          → <span class="badge ok">{{ fmt(entry.after) }}</span>
+      <div v-if="onlyNoopDiff" class="hint" style="margin-top:4px">
+        （该记录仅有投影内部对齐，无实质业务属性变化）
+      </div>
+      <ul v-else class="list-plain">
+        <li v-for="(entry, index) in visibleDiff" :key="index">
+          <template v-if="isFieldDiff(entry)">
+            {{ entry.label || entry.field || '变更字段' }}：<span class="badge muted">{{ fmt(entry.before) }}</span>
+            → <span class="badge ok">{{ fmt(entry.after) }}</span>
+          </template>
+          <template v-else-if="entry.globalId">
+            <b>{{ entry.title || entry.globalId }}</b>
+            <span class="badge warn" style="margin-left:6px">{{ diffAction(entry) }}</span>
+            <div v-if="diffNote(entry)" class="hint">{{ diffNote(entry) }}</div>
+          </template>
+          <template v-else>
+            {{ entry.note || NO_DETAIL_TEXT }}
+          </template>
         </li>
       </ul>
     </div>

@@ -62,4 +62,79 @@ class ReconcileServiceTest {
         service.reconcile(false);
         assertEquals(2, store.changeHistoryCount(), "重复对账不得重复写历史");
     }
+
+    @Test
+    void 对账字段差异输出真实字段级明细含label与前后值() {
+        InMemoryProjectionStore store = new InMemoryProjectionStore();
+        ProjectionWriter writer = new ProjectionWriter(store, TestFixtures.minimalRegistry());
+        String gid = TestFixtures.gid("student", "2");
+
+        // 投影：旧姓名 + 旧学号；来源：新姓名 + 新学号（两个字段都被直改库改掉）。
+        ProjectionRow old = TestFixtures.object("student", "2", 84,
+                Map.of("name", "旧姓名", "studentNo", "S-0001"));
+        store.upsertObject(old);
+        ProjectionRow want = TestFixtures.object("student", "2", 90,
+                Map.of("name", "新姓名", "studentNo", "S-0002"));
+        LinkedHashMap<String, SnapshotBatch> batches = new LinkedHashMap<>();
+        batches.put("student", TestFixtures.batch(want));
+        FakeSnapshotSource source = new FakeSnapshotSource(batches, 90, 90);
+        ReconcileService service = new ReconcileService(source, store, writer,
+                new ModelDefinitionLoader(), new OntologyRepository(null, null, null));
+
+        service.reconcile(false);
+
+        ChangeRecordRow fix = store.lastChange();
+        assertEquals("RECONCILE", fix.origin());
+        List<Map<String, Object>> fieldEntries = fix.diff().stream()
+                .filter(d -> "FIELD_DIFF".equals(d.get("kind")))
+                .toList();
+        assertEquals(2, fieldEntries.size(), "两个被直改的字段应各产出一条 FIELD_DIFF");
+        Map<String, Object> nameDiff = fieldEntries.stream()
+                .filter(d -> "name".equals(d.get("field"))).findFirst().orElseThrow();
+        assertEquals("姓名", nameDiff.get("label"), "label 必须来自模型定义 displayName");
+        assertEquals("旧姓名", nameDiff.get("before"));
+        assertEquals("新姓名", nameDiff.get("after"));
+        assertEquals(gid, nameDiff.get("globalId"));
+        assertEquals(Boolean.TRUE, nameDiff.get("fixed"));
+        Map<String, Object> noDiff = fieldEntries.stream()
+                .filter(d -> "studentNo".equals(d.get("field"))).findFirst().orElseThrow();
+        assertEquals("S-0001", noDiff.get("before"));
+        assertEquals("S-0002", noDiff.get("after"));
+    }
+
+    @Test
+    void 对账字段差异超限时截断并产出汇总条目() {
+        InMemoryProjectionStore store = new InMemoryProjectionStore();
+        ProjectionWriter writer = new ProjectionWriter(store, TestFixtures.minimalRegistry());
+        String gid = TestFixtures.gid("student", "3");
+
+        Map<String, Object> oldAttrs = new LinkedHashMap<>();
+        Map<String, Object> newAttrs = new LinkedHashMap<>();
+        for (int i = 1; i <= 8; i++) {
+            oldAttrs.put("field" + i, "旧" + i);
+            newAttrs.put("field" + i, "新" + i);
+        }
+        store.upsertObject(TestFixtures.object("student", "3", 84, oldAttrs));
+        ProjectionRow want = TestFixtures.object("student", "3", 90, newAttrs);
+        LinkedHashMap<String, SnapshotBatch> batches = new LinkedHashMap<>();
+        batches.put("student", TestFixtures.batch(want));
+        FakeSnapshotSource source = new FakeSnapshotSource(batches, 90, 90);
+        ReconcileService service = new ReconcileService(source, store, writer,
+                new ModelDefinitionLoader(), new OntologyRepository(null, null, null));
+
+        service.reconcile(false);
+
+        ChangeRecordRow fix = store.lastChange();
+        List<Map<String, Object>> fieldEntries = fix.diff().stream()
+                .filter(d -> "FIELD_DIFF".equals(d.get("kind"))).toList();
+        List<Map<String, Object>> summaries = fix.diff().stream()
+                .filter(d -> "FIELD_DIFF_SUMMARY".equals(d.get("kind"))).toList();
+        assertEquals(5, fieldEntries.size(), "字段级明细必须截断到上限 5 条");
+        assertEquals(1, summaries.size());
+        assertEquals(gid, summaries.get(0).get("globalId"));
+        assertTrue(String.valueOf(summaries.get(0).get("note")).contains("3 个字段变化"),
+                "8 个差异 - 5 条明细 = 3 条被收敛，note=" + summaries.get(0).get("note"));
+        // 未知字段名（不在模型定义里）回退为字段名本身，不抛异常。
+        assertTrue(fieldEntries.stream().allMatch(d -> d.get("label") != null));
+    }
 }

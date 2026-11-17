@@ -38,3 +38,6 @@ pgdata/
 # Python 运行缓存（验收脚本 py_compile 会生成）
 __pycache__/
 *.pyc
+
+# 本机端口覆盖（Windows 保留端口冲突时使用，非项目设计）
+docker-compose.override.yml

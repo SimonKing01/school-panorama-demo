@@ -3,12 +3,14 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, gidPath, qs } from '../api'
 import { registerRefresher } from '../store'
+import { useModel } from '../composables/useModel'
 import Pagination from '../components/Pagination.vue'
 import RelationGraph from '../components/RelationGraph.vue'
-import type { GraphData, RelationListData } from '../types'
+import type { GraphData, ObjectDetail, ObjectListData, RelationListData } from '../types'
 
 const route = useRoute()
 const router = useRouter()
+const { types, displayName } = useModel()
 
 const globalIdInput = ref(String(route.query.globalId || ''))
 const globalId = computed(() => globalIdInput.value.trim())
@@ -19,6 +21,59 @@ const list = ref<RelationListData | null>(null)
 const graph = ref<GraphData | null>(null)
 const error = ref('')
 let unregister: (() => void) | undefined
+
+// ── 对象选择器（缺陷 B 修复）：类型下拉 + 关键字 + 结果列表，复用 /objects 接口 ──
+const pickerType = ref('')
+const pickerKeyword = ref('')
+const pickerResults = ref<ObjectListData | null>(null)
+const pickerError = ref('')
+const pickerLoading = ref(false)
+
+/** 快捷示例按钮：gid 骨架固定，标题从对象详情实时解析（对象不存在则自动隐藏）。 */
+const examples = ref<{ gid: string; label: string }[]>([])
+
+const EXAMPLE_GIDS = [
+  'gid:school-panorama:student:1',
+  'gid:school-panorama:lessonSession:3',
+  'gid:school-panorama:class:1',
+]
+
+async function loadExamples(): Promise<void> {
+  const resolved: { gid: string; label: string }[] = []
+  for (const gid of EXAMPLE_GIDS) {
+    try {
+      const detail = await api.get<ObjectDetail>('/objects/' + gidPath(gid))
+      resolved.push({ gid, label: `${displayName(detail.type)} ${detail.title || gid}` })
+    } catch {
+      // 示例对象不存在（演示数据被改写）时直接跳过，不展示死链接。
+    }
+  }
+  examples.value = resolved
+}
+
+/** 与「通用对象探索器」同一套 /objects 接口：类型 + 关键字 + 分页，不另造轮子。 */
+async function searchObjects(): Promise<void> {
+  pickerLoading.value = true
+  try {
+    const params: Record<string, unknown> = { page: 1, size: 10 }
+    if (pickerType.value) params.type = pickerType.value
+    if (pickerKeyword.value.trim()) params.q = pickerKeyword.value.trim()
+    pickerResults.value = await api.get<ObjectListData>('/objects' + qs(params))
+    pickerError.value = ''
+  } catch (e) {
+    pickerError.value = e instanceof Error ? e.message : '对象搜索失败'
+  } finally {
+    pickerLoading.value = false
+  }
+}
+
+/** 选中对象即填入中心对象并展开关系（与示例按钮共用）。 */
+function pickObject(gid: string): void {
+  globalIdInput.value = gid
+  pickerResults.value = null
+  pickerKeyword.value = ''
+  apply()
+}
 
 async function load(): Promise<void> {
   if (!globalId.value) {
@@ -82,6 +137,7 @@ function openObject(target: string): void {
 }
 
 onMounted(async () => {
+  void loadExamples()
   await reload()
   unregister = registerRefresher(load)
 })
@@ -118,12 +174,44 @@ onUnmounted(() => {
       <div v-if="list" class="hint">关系总数 {{ list.total }} · 当前第 {{ page }} 页</div>
     </div>
 
+    <!-- 未选中心对象：引导 + 对象选择器（缺陷 B 修复：不再渲染空表格骨架） -->
+    <div v-if="!globalId" class="card">
+      <h3>请先选择中心对象</h3>
+      <div class="hint">可在此搜索对象，或从「通用对象探索器」点选后进入本页。</div>
+      <div class="toolbar" style="margin-top:8px">
+        <label>对象类型</label>
+        <select v-model="pickerType">
+          <option value="">全部类型</option>
+          <option v-for="t in types" :key="t.id" :value="t.id">{{ t.displayName }}</option>
+        </select>
+        <label>关键字</label>
+        <input v-model="pickerKeyword" type="text" placeholder="姓名 / 编号 / 名称" style="min-width:200px" @keyup.enter="searchObjects" />
+        <button class="primary" :disabled="pickerLoading" @click="searchObjects">{{ pickerLoading ? '搜索中' : '搜索对象' }}</button>
+      </div>
+      <p v-if="pickerError" class="error-banner">{{ pickerError }}</p>
+      <div v-if="pickerResults">
+        <div class="hint">命中 {{ pickerResults.total }} 条（点击选中作为中心对象）</div>
+        <div v-if="!pickerResults.items.length" class="empty">没有匹配的对象</div>
+        <ul class="list-plain">
+          <li v-for="row in pickerResults.items" :key="row.globalId" style="cursor:pointer" @click="pickObject(row.globalId)">
+            <b>{{ row.title || row.globalId }}</b>
+            <span class="badge info" style="margin-left:6px">{{ displayName(row.type) }}</span>
+            <span class="hint" style="margin-left:6px">{{ row.globalId }}</span>
+          </li>
+        </ul>
+      </div>
+      <div style="margin-top:10px">
+        <span class="hint">快捷示例：</span>
+        <button v-for="ex in examples" :key="ex.gid" style="margin-right:6px" @click="pickObject(ex.gid)">{{ ex.label }}</button>
+      </div>
+    </div>
+
     <div v-if="graph" class="card">
       <h3>关系图（纯 SVG，无外部图库）</h3>
       <RelationGraph :graph="graph" :relations="list?.items ?? []" />
     </div>
 
-    <div class="card">
+    <div v-if="globalId" class="card">
       <h3>关系列表</h3>
       <table class="desktop-only">
         <thead>
@@ -161,8 +249,11 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div v-if="!(list?.items ?? []).length" class="empty">暂无关系数据</div>
-      <Pagination :page="page" :size="20" :total="list?.total ?? 0" @change="changePage" />
+      <div v-if="!list" class="empty">正在加载关系数据…</div>
+      <div v-else-if="!(list.items ?? []).length" class="empty">
+        该对象在 {{ depth }} 层展开下暂无关系{{ depth === 1 ? '（可尝试切到 2 层）' : '' }}
+      </div>
+      <Pagination v-if="list" :page="page" :size="20" :total="list.total" @change="changePage" />
     </div>
   </div>
 </template>

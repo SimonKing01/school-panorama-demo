@@ -1,11 +1,11 @@
 {
-  "time": "2026-11-16T06:38:17.053Z",
-  "base": "http://127.0.0.1:5181",
+  "time": "2026-11-17T07:04:28.003Z",
+  "base": "http://127.0.0.1:15181",
   "bases": {
     "bizApi": "http://127.0.0.1:18080/api",
-    "bizWeb": "http://127.0.0.1:5180",
+    "bizWeb": "http://127.0.0.1:15180",
     "ontologyApi": "http://127.0.0.1:18090",
-    "ontologyWeb": "http://127.0.0.1:5181"
+    "ontologyWeb": "http://127.0.0.1:15181"
   },
   "selected": [
     "pages_desktop",
@@ -15,11 +15,12 @@
     "auto_update_5s",
     "refresh_retry",
     "business_jump",
-    "source_freshness"
+    "source_freshness",
+    "display_regression"
   ],
   "summary": {
-    "total": 71,
-    "passed": 69,
+    "total": 78,
+    "passed": 76,
     "failed": 0,
     "skipped": 2,
     "hasSkipped": true
@@ -30,7 +31,7 @@
       "item": "桌面·全景总览 页面可进入且展示中文内容（5/5 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=5081",
+      "detail": "URL=http://127.0.0.1:15181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=8883",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -46,7 +47,7 @@
       "item": "桌面·通用对象探索器 页面可进入且展示中文内容（5/5 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=541",
+      "detail": "URL=http://127.0.0.1:15181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=541",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -62,7 +63,7 @@
       "item": "桌面·关系探索（列表 + 图） 页面可进入且展示中文内容（3/3 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/relations 命中=关系/图/展开 文本长度=455",
+      "detail": "URL=http://127.0.0.1:15181/#/relations 命中=关系/图/展开 文本长度=483",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -78,7 +79,7 @@
       "item": "桌面·变化与影响 页面可进入且展示中文内容（4/4 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/changes 命中=变化/影响/来源/时间 文本长度=13126",
+      "detail": "URL=http://127.0.0.1:15181/#/changes 命中=变化/影响/来源/时间 文本长度=14131",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -94,7 +95,7 @@
       "item": "桌面·模型与接入管理 页面可进入且展示中文内容（6/6 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=10913",
+      "detail": "URL=http://127.0.0.1:15181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=10913",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -118,7 +119,7 @@
       "item": "桌面·关系图具备展开层数/节点上限控件（1 层 2 层）",
       "status": "passed",
       "passed": true,
-      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 327\n已确认版本 327\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-",
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -126,7 +127,7 @@
       "item": "通用对象详情可打开（由 #/detail?globalId= 动态渲染）",
       "status": "passed",
       "passed": true,
-      "detail": "route=/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1 / URL=http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1",
+      "detail": "route=/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1 / URL=http://127.0.0.1:15181/#/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -134,7 +135,7 @@
       "item": "详情含当前属性 / 动态结果 / 正反向关联 / 最近变化 / 来源与映射",
       "status": "passed",
       "passed": true,
-      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 327\n已确认版本 327\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-11-16T14:37:05\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T15:02:04\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -142,7 +143,7 @@
       "item": "详情附「返回原业务对象」入口",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 327\n已确认版本 327\n演示时间 2026-11-16T10:15:",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -158,7 +159,7 @@
       "item": "手机·全景总览 页面可进入且展示中文内容（5/5 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=5081",
+      "detail": "URL=http://127.0.0.1:15181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=8883",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -174,7 +175,7 @@
       "item": "手机·通用对象探索器 页面可进入且展示中文内容（5/5 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=553",
+      "detail": "URL=http://127.0.0.1:15181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=553",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -190,7 +191,7 @@
       "item": "手机·关系探索（列表 + 图） 页面可进入且展示中文内容（3/3 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/relations 命中=关系/图/展开 文本长度=402",
+      "detail": "URL=http://127.0.0.1:15181/#/relations 命中=关系/图/展开 文本长度=483",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -206,7 +207,7 @@
       "item": "手机·变化与影响 页面可进入且展示中文内容（4/4 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/changes 命中=变化/影响/来源/时间 文本长度=13126",
+      "detail": "URL=http://127.0.0.1:15181/#/changes 命中=变化/影响/来源/时间 文本长度=14131",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -222,7 +223,7 @@
       "item": "手机·模型与接入管理 页面可进入且展示中文内容（6/6 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=11008",
+      "detail": "URL=http://127.0.0.1:15181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=11008",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -246,7 +247,7 @@
       "item": "手机·关系图具备展开层数/节点上限控件（1 层 2 层）",
       "status": "passed",
       "passed": true,
-      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 327\n已确认版本 327\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-",
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -270,7 +271,7 @@
       "item": "手机端全局搜索可直接查到对象",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -326,7 +327,7 @@
       "item": "通用对象探索器按定义渲染列表（学生列表可见且有行）",
       "status": "passed",
       "passed": true,
-      "detail": "行数=21 / 文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 327\n已确认版本 327\n演示时间 2026-11-16T10:15:",
+      "detail": "行数=21 / 文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:",
       "group": "模型驱动",
       "case": "model_driven_views"
     },
@@ -342,7 +343,7 @@
       "item": "同一套通用详情路由可打开（#/detail?globalId=）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1",
+      "detail": "URL=http://127.0.0.1:15181/#/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1",
       "group": "模型驱动",
       "case": "model_driven_views"
     },
@@ -350,7 +351,7 @@
       "item": "详情页展示属性区 + 来源/映射 + 动态结果（详情数组驱动）",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 327\n已确认版本 327\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-11-16T14:37:05\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T15:02:04\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
       "group": "模型驱动",
       "case": "model_driven_views"
     },
@@ -358,7 +359,7 @@
       "item": "列表与详情由同一套通用路由渲染（URL 无 student/classroom 等类型专用路径）",
       "status": "passed",
       "passed": true,
-      "detail": "http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1",
+      "detail": "http://127.0.0.1:15181/#/detail?globalId=gid%3Aschool-panorama%3Astudent%3A1",
       "group": "模型驱动",
       "case": "model_driven_views"
     },
@@ -374,7 +375,7 @@
       "item": "按姓名全局搜索直达学生 陈一诺",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 327\n已确认",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认",
       "group": "交互",
       "case": "global_search"
     },
@@ -382,7 +383,7 @@
       "item": "点击搜索结果可直达通用对象详情（#/detail?globalId=）",
       "status": "passed",
       "passed": true,
-      "detail": "clicked=true URL=http://127.0.0.1:5181/#/detail?globalId=gid:school-panorama:student:1",
+      "detail": "clicked=true URL=http://127.0.0.1:15181/#/detail?globalId=gid:school-panorama:student:1",
       "group": "交互",
       "case": "global_search"
     },
@@ -398,7 +399,7 @@
       "item": "页面层：教室可被全局搜索直达（无需教室专用页面）",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本",
       "group": "交互",
       "case": "global_search"
     },
@@ -406,7 +407,7 @@
       "item": "教室打开的是同一套通用对象详情（非教室专用页面）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3Aclassroom%3A1",
+      "detail": "URL=http://127.0.0.1:15181/#/detail?globalId=gid%3Aschool-panorama%3Aclassroom%3A1",
       "group": "交互",
       "case": "global_search"
     },
@@ -414,7 +415,7 @@
       "item": "教室通用详情含来源/映射/关联对象",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:37:05\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 327\n已确认版本 327\n演示时间 ",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 ",
       "group": "交互",
       "case": "global_search"
     },
@@ -454,7 +455,7 @@
       "item": "已打开视角①对象详情在 5 秒内自动更新",
       "status": "passed",
       "passed": true,
-      "detail": "{\"commitMs\":14,\"detailSec\":0.97,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
+      "detail": "{\"commitMs\":15,\"detailSec\":0.96,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
       "group": "交互",
       "case": "auto_update_5s"
     },
@@ -462,7 +463,7 @@
       "item": "已打开视角②变化与影响在 5 秒内自动更新",
       "status": "passed",
       "passed": true,
-      "detail": "{\"commitMs\":14,\"detailSec\":0.97,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
+      "detail": "{\"commitMs\":15,\"detailSec\":0.96,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
       "group": "交互",
       "case": "auto_update_5s"
     },
@@ -470,7 +471,7 @@
       "item": "从业务提交成功到多视角全部更新 ≤5 秒（记录真实耗时与条件）",
       "status": "passed",
       "passed": true,
-      "detail": "{\"commitMs\":14,\"detailSec\":0.97,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
+      "detail": "{\"commitMs\":15,\"detailSec\":0.96,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
       "group": "交互",
       "case": "auto_update_5s"
     },
@@ -502,7 +503,7 @@
       "item": "注入刷新失败后自动重试、不因提前记住新版本号停留旧数据",
       "status": "skipped",
       "passed": null,
-      "detail": "未能命中本体只读请求（injected=0），无法构造刷新失败；需主理人确认前端实际请求前缀（期望含 /api/ontology/...）。当前页面 URL=http://127.0.0.1:5181/#/detail?globalId=gid%3Aschool-panorama%3AlessonSession%3A3",
+      "detail": "未能命中本体只读请求（injected=0），无法构造刷新失败；需主理人确认前端实际请求前缀（期望含 /api/ontology/...）。当前页面 URL=http://127.0.0.1:15181/#/detail?globalId=gid%3Aschool-panorama%3AlessonSession%3A3",
       "group": "交互",
       "case": "refresh_retry"
     },
@@ -510,7 +511,7 @@
       "item": "接口提供 backToBusinessUrl，指向原业务入口 :5180",
       "status": "passed",
       "passed": true,
-      "detail": "backToBusinessUrl=http://localhost:5180/objects?type=student",
+      "detail": "backToBusinessUrl=http://localhost:15180/objects?type=student",
       "group": "交互",
       "case": "business_jump"
     },
@@ -526,7 +527,7 @@
       "item": "业务按钮指向原业务页面（沿用原有校验，不在平台内改投影）",
       "status": "passed",
       "passed": true,
-      "detail": "href=http://localhost:5180/objects?type=student",
+      "detail": "href=http://localhost:15180/objects?type=student",
       "group": "交互",
       "case": "business_jump"
     },
@@ -534,7 +535,7 @@
       "item": "平台页面为只读展示（无平台内写入入口伪装业务成功）",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:38:11\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 332\n已确认版本 332\n演示时间 2026-11-16T10:15:",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:04:08\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 433\n已确认版本 433\n演示时间 2026-11-17T10:15:",
       "group": "交互",
       "case": "business_jump"
     },
@@ -542,7 +543,7 @@
       "item": "接口 /sources/status 可读且含 sourceUp / status / lastSuccessSyncAt / demoTime",
       "status": "passed",
       "passed": true,
-      "detail": "{\"sourceId\":\"school-panorama\",\"sourceUp\":true,\"status\":\"SYNCED\",\"statusLabel\":\"已同步（新鲜）\",\"lastSuccessSyncAt\":\"2026-11-16T14:38:11\",\"demoTime\":\"2026-11-16T10:15:00\",\"snapshotRevision\":333,\"currentSourceRevision\":333,\"pendingCount\":0,\"processingCount\":0,\"errorCou",
+      "detail": "{\"sourceId\":\"school-panorama\",\"sourceUp\":true,\"status\":\"SYNCED\",\"statusLabel\":\"已同步（新鲜）\",\"lastSuccessSyncAt\":\"2026-11-17T15:04:08\",\"demoTime\":\"2026-11-17T10:15:00\",\"snapshotRevision\":410,\"currentSourceRevision\":410,\"pendingCount\":0,\"processingCount\":0,\"errorCou",
       "group": "状态",
       "case": "source_freshness"
     },
@@ -550,7 +551,7 @@
       "item": "顶栏/页面显示最后成功同步时间与数据新鲜度",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-16T10:15:00\n最后成功同步 2026-11-16T14:38:11\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 332\n已确认版本 332\n演示时间 2026-11-16T10:15:00 演示时间\n最后成功同步 2026-11-16T14:38:11\n待处理 0\n立即重试刷新\n全景总览\n对象/关系规模",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:04:08\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 433\n已确认版本 433\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T15:04:08\n待处理 0\n立即重试刷新\n全景总览\n对象/关系规模",
       "group": "状态",
       "case": "source_freshness"
     },
@@ -577,6 +578,62 @@
       "detail": "status=SYNCED / statusLabel=已同步（新鲜）",
       "group": "状态",
       "case": "source_freshness"
+    },
+    {
+      "item": "变化记录「属性前后差异」不出现空行（空 label + 空前后值）",
+      "status": "passed",
+      "passed": true,
+      "detail": "检出空行 0 条",
+      "group": "缺陷修复",
+      "case": "display_regression"
+    },
+    {
+      "item": "变化记录对账条目均有实质文案（不留空行、不静默消失）",
+      "status": "passed",
+      "passed": true,
+      "detail": "条目数=10 无实质变化提示=false 样例=[\"开始时间：13:00 → 10:00\",\"结束时间：13:45 → 10:45\"]",
+      "group": "缺陷修复",
+      "case": "display_regression"
+    },
+    {
+      "item": "关系页未选对象时显示引导文案（请先选择中心对象）",
+      "status": "passed",
+      "passed": true,
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:04:08\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 433\n已确认版本 433\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T15:04:08\n待处理 0",
+      "group": "缺陷修复",
+      "case": "display_regression"
+    },
+    {
+      "item": "关系页未选对象时不再显示空表格「暂无关系数据」",
+      "status": "passed",
+      "passed": true,
+      "detail": "命中「暂无关系数据」=false",
+      "group": "缺陷修复",
+      "case": "display_regression"
+    },
+    {
+      "item": "关系页空态提供对象选择器（类型下拉 + 关键字 + 快捷示例）",
+      "status": "passed",
+      "passed": true,
+      "detail": "全部类型=true / 快捷示例=true / select=1",
+      "group": "缺陷修复",
+      "case": "display_regression"
+    },
+    {
+      "item": "点击快捷示例后加载出关系列表与关系图",
+      "status": "passed",
+      "passed": true,
+      "detail": "关系总数=true / svg=1 / URL=http://127.0.0.1:15181/#/relations?globalId=gid:school-panorama:student:1&depth=1&limit=50&page=1",
+      "group": "缺陷修复",
+      "case": "display_regression"
+    },
+    {
+      "item": "选中对象后不出现空态引导卡片与「暂无关系数据」",
+      "status": "passed",
+      "passed": true,
+      "detail": "引导=false / 暂无=false",
+      "group": "缺陷修复",
+      "case": "display_regression"
     },
     {
       "item": "验收结束恢复初始演示数据",

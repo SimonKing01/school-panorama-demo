@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, qs } from '../api'
 import { registerRefresher } from '../store'
@@ -13,7 +13,12 @@ const router = useRouter()
 const globalId = ref(String(route.query.globalId || ''))
 const role = ref(String(route.query.role || ''))
 const page = ref(Number(route.query.page || 1))
-const size = 10
+// 每页条数可由 URL 控制（默认 10）：需要一次看较多历史（如排查某条对账/重建记录）时，
+// 用 ?size=100 即可，不必在 10 条一页里反复翻页。
+const size = computed(() => {
+  const value = Number(route.query.size || 10)
+  return Number.isFinite(value) && value > 0 ? Math.min(value, 200) : 10
+})
 const data = ref<ChangeListData | null>(null)
 const error = ref('')
 let unregister: (() => void) | undefined
@@ -23,7 +28,7 @@ async function load(): Promise<void> {
     globalId: globalId.value.trim(),
     role: role.value,
     page: page.value,
-    size,
+    size: size.value,
   }))
 }
 

@@ -23,7 +23,7 @@ const ROOT = path.resolve(__dirname, '..')
 const SHOTS = path.join(ROOT, 'screenshots', 'ontology')
 const RESULTS = path.join(__dirname, 'ontology-browser-results.json')
 
-const BASE = process.env.ONTOLOGY_WEB_BASE || 'http://127.0.0.1:5181'
+const BASE = process.env.ONTOLOGY_WEB_BASE || process.env.ONTOLOGY_WEB || 'http://127.0.0.1:5181'
 const BIZ_WEB = process.env.ONTOLOGY_BIZ_WEB || 'http://127.0.0.1:5180'
 const BIZ_API = process.env.ONTOLOGY_BIZ_API || 'http://127.0.0.1:18080/api'
 const ONTO_API = process.env.ONTOLOGY_API || 'http://127.0.0.1:18090'
@@ -248,6 +248,7 @@ const CASES = [
   { name: 'refresh_retry', title: '刷新失败重试协议（不提前 ack 版本号）', group: '交互' },
   { name: 'business_jump', title: '业务按钮跳转原业务入口并沿用原校验', group: '交互' },
   { name: 'source_freshness', title: '来源不可用与新鲜度/最后成功同步时间显示', group: '状态' },
+  { name: 'display_regression', title: '展示缺陷防回归：变化差异无空行 / 关系页空态引导', group: '缺陷修复' },
 ]
 
 const PAGES = [
@@ -716,6 +717,97 @@ async function caseSourceFreshness(ctx) {
   } finally { await page.close() }
 }
 
+/**
+ * 展示缺陷防回归（缺陷 A / B）：
+ * - A：变化记录「属性前后差异」不得再渲染出「：/ （空）→ （空）」式的空行
+ *   （历史落库的旧结构 diff 也必须走对象级清单或 note 兜底，绝不出现空 label 行）；
+ * - B：关系探索页不带 globalId 时必须给引导 + 对象选择器，而不是空表格「暂无关系数据」。
+ */
+async function caseDisplayRegression(ctx) {
+  const R = forCase('display_regression', '缺陷修复')
+  const page = await ctx.desktop.newPage()
+  watchConsole(page, 'desktop-display')
+  try {
+    // ── 缺陷 A：变化页差异明细不允许空行 ──────────────────────────────────
+    // 带 size=100 一次取较多记录：对账/重建这类记录会被后续几十次调课挤出首页，
+    // 只验首页会漏掉它们（这正是当初这条缺陷没被发现的盲区）。
+    await goto(page, '/changes?page=1&size=100', '18-变化记录差异渲染-桌面.png')
+    await page.waitForSelector('.card', { timeout: 8000 }).catch(() => {})
+    await page.waitForTimeout(1200)
+    const badDiffLines = await page.evaluate(() => {
+      // 逐行检查变化卡片里的差异/影响清单：空行 = 只有冒号/箭头/占位符、左侧无字段名的行。
+      const lines = Array.from(document.querySelectorAll('.list-plain li'))
+        .map(li => (li.textContent || '').replace(/\s+/g, ' ').trim())
+      return lines.filter(t =>
+        t === '' ||
+        /^[：:→\s]*$/.test(t) ||
+        /^[：:]?\s*(—|（空）|无|undefined)?\s*→\s*(—|（空）|无|undefined)?\s*$/.test(t))
+    }).catch(() => null)
+    if (badDiffLines === null) {
+      R.skip('变化记录差异明细无空行', '页面未能渲染（.list-plain 不可读），需确认服务状态')
+    } else {
+      R.check('变化记录「属性前后差异」不出现空行（空 label + 空前后值）',
+        badDiffLines.length === 0,
+        `检出空行 ${badDiffLines.length} 条${badDiffLines.length ? '，样例=' + JSON.stringify(badDiffLines.slice(0, 3)) : ''}`)
+    }
+    // 历史旧结构（#84/#87 类 RECONCILE_FIX）必须有实质内容，而不是整块静默消失。
+    // 判据不能靠「已修正 / 投影缺失」这类关键词：早期记录里前后值相同的假差异会被前端
+    // 过滤掉，剩下的可能是字段级差异行或关系 note，未必命中任何固定词。
+    // 真正要保证的是：渲染出来的每一条都有实质文案，或者给出「无实质变化」的显式提示。
+    const reconcileInfo = await page.evaluate(() => {
+      const cards = Array.from(document.querySelectorAll('.card'))
+      for (const c of cards) {
+        if ((c.textContent || '').includes('对账修复')) {
+          const lis = Array.from(c.querySelectorAll('.list-plain li'))
+            .map(li => (li.textContent || '').replace(/\s+/g, ' ').trim())
+          return { lis, noopHint: /无实质业务属性变化/.test(c.textContent || '') }
+        }
+      }
+      return null
+    }).catch(() => null)
+    const reconcileOk = reconcileInfo !== null
+      && (reconcileInfo.noopHint
+        || (reconcileInfo.lis.length > 0 && reconcileInfo.lis.every(t => t.length > 0)))
+    R.check('变化记录对账条目均有实质文案（不留空行、不静默消失）',
+      reconcileOk,
+      `条目数=${reconcileInfo ? reconcileInfo.lis.length : 'null'} 无实质变化提示=${reconcileInfo ? reconcileInfo.noopHint : 'null'} 样例=${reconcileInfo ? JSON.stringify(reconcileInfo.lis.slice(0, 2)) : 'null'}`)
+
+    // ── 缺陷 B：关系页空态必须是引导 + 选择器，不是空表格 ────────────────
+    await goto(page, '/relations', '19-关系页空态引导-桌面.png')
+    await page.waitForTimeout(1200)
+    const emptyText = await bodyText(page)
+    R.check('关系页未选对象时显示引导文案（请先选择中心对象）',
+      emptyText.includes('请先选择中心对象'),
+      `文本片段=${emptyText.slice(0, 200)}`)
+    R.check('关系页未选对象时不再显示空表格「暂无关系数据」',
+      !emptyText.includes('暂无关系数据'),
+      `命中「暂无关系数据」=${emptyText.includes('暂无关系数据')}`)
+    const hasSelect = await page.locator('select').count().catch(() => 0)
+    R.check('关系页空态提供对象选择器（类型下拉 + 关键字 + 快捷示例）',
+      /全部类型|快捷示例/.test(emptyText) && hasSelect > 0,
+      `全部类型=${emptyText.includes('全部类型')} / 快捷示例=${emptyText.includes('快捷示例')} / select=${hasSelect}`)
+
+    // ── 快捷示例按钮可直接进入关系列表 + 图 ─────────────────────────────
+    const exampleBtn = page.getByRole('button', { name: /学生|课次|班级/ }).first()
+    const hasExample = await exampleBtn.count().catch(() => 0)
+    if (hasExample) {
+      await exampleBtn.click().catch(() => {})
+      await page.waitForTimeout(2500)
+      const loadedText = await bodyText(page)
+      const svgCount = await page.locator('svg').count().catch(() => 0)
+      R.check('点击快捷示例后加载出关系列表与关系图',
+        /关系总数/.test(loadedText) && (svgCount > 0 || /关系图/.test(loadedText)),
+        `关系总数=${/关系总数/.test(loadedText)} / svg=${svgCount} / URL=${page.url()}`)
+      R.check('选中对象后不出现空态引导卡片与「暂无关系数据」',
+        !loadedText.includes('请先选择中心对象') && !loadedText.includes('暂无关系数据'),
+        `引导=${loadedText.includes('请先选择中心对象')} / 暂无=${loadedText.includes('暂无关系数据')}`)
+      await page.screenshot({ path: path.join(SHOTS, '20-关系页示例进入-桌面.png'), fullPage: true }).catch(() => {})
+    } else {
+      R.skip('点击快捷示例进入关系列表与图', '快捷示例按钮未渲染（示例对象可能不存在），需确认演示数据')
+    }
+  } finally { await page.close() }
+}
+
 const HANDLERS = {
   pages_desktop: casePagesDesktop,
   pages_mobile: casePagesMobile,
@@ -725,6 +817,7 @@ const HANDLERS = {
   refresh_retry: caseRefreshRetry,
   business_jump: caseBusinessJump,
   source_freshness: caseSourceFreshness,
+  display_regression: caseDisplayRegression,
 }
 
 function parseArgs() {

@@ -174,11 +174,26 @@ export interface GraphData {
   edges: GraphEdge[]
 }
 
+/**
+ * 变更差异条目（两种形态并存，字段全部可选）：
+ * - 事件来源（origin=EVENT）：字段级差异 {field, label, before, after}；
+ * - 对账/重建来源（origin=RECONCILE/REBUILD）：对象级清单 {kind, globalId, title, note, value, fixed}，
+ *   FIELD_DIFF 例外：对账新结构同样是字段级（含 label/before/after）。
+ * 历史落库数据可能是旧结构（只有 field/value），渲染端必须逐级回退、绝不假设字段齐全。
+ * 保留索引签名：后端新增字段不导致前端类型报错。
+ */
 export interface DiffEntry {
-  field: string
-  label: string
-  before: unknown
-  after: unknown
+  field?: string
+  label?: string
+  before?: unknown
+  after?: unknown
+  kind?: string
+  globalId?: string
+  note?: string
+  value?: unknown
+  fixed?: boolean
+  title?: string
+  [key: string]: unknown
 }
 
 export interface ImpactEntry {

@@ -39,10 +39,16 @@ function currentQuery(): Record<string, string> {
   return query
 }
 
-async function load(): Promise<void> {
-  if (!activeType.value) return
+/**
+ * @param typeOverride 切换类型时显式传入目标类型。
+ *   不能依赖 activeType（它是 route.query.type 的 computed）——router.replace 是异步的，
+ *   调用后立刻读 computed 仍会拿到旧值，点击按钮就会“按不动”。
+ */
+async function load(typeOverride?: string): Promise<void> {
+  const type = typeOverride || activeType.value
+  if (!type) return
   const params: Record<string, unknown> = {
-    type: activeType.value,
+    type,
     q: keyword.value.trim(),
     page: page.value,
     size: size.value,
@@ -57,9 +63,9 @@ function syncQuery(): void {
   void router.replace({ name: 'explorer', query: currentQuery() })
 }
 
-async function reload(): Promise<void> {
+async function reload(typeOverride?: string): Promise<void> {
   try {
-    await load()
+    await load(typeOverride)
     error.value = ''
   } catch (e) {
     error.value = e instanceof Error ? e.message : '对象列表加载失败'
@@ -80,11 +86,19 @@ onUnmounted(() => {
   if (unregister) unregister()
 })
 
+/**
+ * 切换对象类型（缺陷 D）。
+ *
+ * 原实现接收 id 却从不使用：syncQuery() 与 load() 都读 activeType（route.query.type 的 computed），
+ * 而 router.replace 是异步的，调用后 computed 仍是旧值 —— 点击类型按钮页面毫无反应。
+ * 现在改为直接把 id 写进 URL 并显式传给 reload，不再依赖 computed 的更新时序。
+ */
 function selectType(id: string): void {
   page.value = 1
   filters.value = {}
-  syncQuery()
-  void reload()
+  keyword.value = ''
+  void router.replace({ name: 'explorer', query: { type: id, page: '1', size: String(size.value) } })
+  void reload(id)
 }
 
 function applyFilter(): void {
