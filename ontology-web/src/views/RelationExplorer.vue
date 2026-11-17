@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, gidPath, qs } from '../api'
 import { registerRefresher } from '../store'
@@ -14,12 +14,19 @@ const { types, displayName } = useModel()
 
 const globalIdInput = ref(String(route.query.globalId || ''))
 const globalId = computed(() => globalIdInput.value.trim())
+/** 未填 globalId 时把焦点交给输入框，让用户知道该改哪里（缺陷 3）。 */
+const globalIdField = ref<HTMLInputElement | null>(null)
 const depth = ref(Number(route.query.depth || 1))
 const limit = ref(Number(route.query.limit || 50))
 const page = ref(Number(route.query.page || 1))
 const list = ref<RelationListData | null>(null)
 const graph = ref<GraphData | null>(null)
 const error = ref('')
+/**
+ * 上一次「真正发出去的请求」的参数指纹（去重用）。
+ * syncQuery() 自己造成的 URL 变化会回来触发 route.query 监听，不去重就会一次点击打两次接口。
+ */
+let lastRequestKey = ''
 let unregister: (() => void) | undefined
 
 // ── 对象选择器（缺陷 B 修复）：类型下拉 + 关键字 + 结果列表，复用 /objects 接口 ──
@@ -68,19 +75,63 @@ async function searchObjects(): Promise<void> {
 }
 
 /** 选中对象即填入中心对象并展开关系（与示例按钮共用）。 */
+/**
+ * 选中对象即填入中心对象并展开关系（与示例按钮共用）。
+ *
+ * <p>这里不再清空 pickerResults：起始列表是「未选中心对象」空态里的唯一出路，
+ * 选过一次就把它丢掉，用户随后清空 globalId 时会退回没有入口的空白页 ——
+ * 那正是本次要修掉的观感。列表本身渲染在 v-if="!globalId" 的卡片里，
+ * 选中对象后卡片自然隐藏，无需手动清空。</p>
+ */
 function pickObject(gid: string): void {
   globalIdInput.value = gid
-  pickerResults.value = null
   pickerKeyword.value = ''
-  apply()
+  void apply()
+}
+
+/** 起始列表不足这么多条时视为「接近空白」，退化为全部类型。 */
+const STARTER_MIN_ROWS = 8
+
+/** 起始列表当前覆盖的类型范围，避免用户误以为列出来的都是同一类型。 */
+const pickerScope = computed(() => (pickerType.value ? displayName(pickerType.value) : '全部类型'))
+
+/** 有输入关键字时标题切到「搜索结果」，避免把筛选结果也叫「从下列对象开始探索」。 */
+const pickerTitle = computed(() => (pickerKeyword.value.trim() ? '搜索结果' : '从下列对象开始探索'))
+
+/**
+ * 未选中心对象时自动铺出起始对象列表（缺陷 3）。
+ * 原来这里只有一张引导卡 + 一整屏空白，用户没有可点的起点，
+ * 加上输入框 placeholder 长得像已填好的值，就会得出「关系探索是空的」。
+ * 复用已有的 /objects 搜索（searchObjects），不新增接口。
+ *
+ * 默认取首个对象类型（types[0].id）。但演示数据里首个类型「学校」只有 2 条对象，
+ * 只铺 2 行依然接近空白 —— 因此在首个类型不足一屏时自动退化为「全部类型」，
+ * 保证用户一进页面就有足够可点的入口（这正是本缺陷的原始诉求）。
+ */
+async function loadStarter(): Promise<void> {
+  if (!pickerType.value && types.value.length) pickerType.value = types.value[0].id
+  await searchObjects()
+  const tooFew = (pickerResults.value?.total ?? 0) < STARTER_MIN_ROWS
+  if (tooFew && !pickerKeyword.value.trim() && pickerType.value) {
+    pickerType.value = ''
+    await searchObjects()
+  }
+}
+
+/** 一组请求参数的指纹：字符串相同即视为「同一个查询」，用于 route.query 监听去重。 */
+function relationKey(gid: string, d: number, l: number, pageNo: number): string {
+  return JSON.stringify([gid, d, l, pageNo])
 }
 
 async function load(): Promise<void> {
   if (!globalId.value) {
     list.value = null
     graph.value = null
+    lastRequestKey = relationKey('', depth.value, limit.value, page.value)
     return
   }
+  // 记录指纹：route.query 监听据此判断这次 URL 变化是不是自己发起的（避免重复请求）
+  lastRequestKey = relationKey(globalId.value, depth.value, limit.value, page.value)
   const gid = gidPath(globalId.value)
   const [relations, graphData] = await Promise.all([
     api.get<RelationListData>('/objects/' + gid + '/relations'
@@ -113,10 +164,24 @@ function syncQuery(): void {
   })
 }
 
-function apply(): void {
+/**
+ * 原实现里 globalId 为空时静默 return：用户点了「展开关系」页面毫无变化，
+ * 只看到「请先选择中心对象」和空白，就判定按钮坏了（缺陷 3）。
+ * 现在显式报错、把焦点交给输入框，且明确不发请求（避免无意义的 /relations 调用）。
+ */
+async function apply(): Promise<void> {
+  if (!globalId.value) {
+    error.value = '请先输入 globalId，或从下方对象列表中选择一个对象'
+    globalIdField.value?.focus()
+    // 空态卡片里必须始终有可点入口：首次进入时 loadStarter 可能因模型未就绪而没铺上列表，
+    // 这里补一次，避免「提示有了、下面还是空的」。
+    if (!pickerResults.value) void loadStarter()
+    return
+  }
   page.value = 1
+  error.value = ''
   syncQuery()
-  void reload()
+  await reload()
 }
 
 function setDepth(next: number): void {
@@ -138,9 +203,45 @@ function openObject(target: string): void {
 
 onMounted(async () => {
   void loadExamples()
+  void loadStarter()
   await reload()
   unregister = registerRefresher(load)
 })
+
+/**
+ * 模型定义由父级 App 在 onMounted 里拉取，可能晚于本视图挂载完成：
+ * 类型到位后补一次默认类型与起始列表，否则开场列表会退化成「全部类型」。
+ */
+watch(
+  () => types.value.length,
+  (count) => {
+    if (count > 0 && !pickerType.value) void loadStarter()
+  },
+)
+
+/**
+ * 外部改 URL（同一标签页换地址、粘贴带 globalId/depth/page 的链接）时补一次查询。
+ * 原来数据只在挂载与点击时加载：URL 换成另一个中心对象后，输入框外的页面毫无变化，
+ * 同样会被当成「按钮失灵」。lastRequestKey 用来跳过 syncQuery 自己造成的变化，避免重复请求。
+ */
+watch(
+  () => route.query,
+  (query) => {
+    const nextGid = String(query.globalId || '').trim()
+    const nextDepth = Number(query.depth || 1)
+    const nextLimit = Number(query.limit || 50)
+    const nextPage = Number(query.page || 1)
+    if (relationKey(nextGid, nextDepth, nextLimit, nextPage) === lastRequestKey) {
+      return
+    }
+    globalIdInput.value = nextGid
+    depth.value = nextDepth
+    limit.value = nextLimit
+    page.value = nextPage
+    error.value = ''
+    void reload()
+  },
+)
 
 onUnmounted(() => {
   if (unregister) unregister()
@@ -160,7 +261,14 @@ onUnmounted(() => {
     <div class="card">
       <div class="toolbar">
         <label>中心对象 globalId</label>
-        <input v-model="globalIdInput" type="text" style="min-width:280px; max-width:100%" placeholder="gid:school-panorama:student:1" />
+        <span class="hint">未填写时点「展开关系」不会发起查询</span>
+        <input
+          ref="globalIdField"
+          v-model="globalIdInput"
+          type="text"
+          style="min-width:280px; max-width:100%"
+          placeholder="例如：gid:school-panorama:student:1（可粘贴，也可从下方选择对象）"
+        />
         <button class="primary" @click="apply">展开关系</button>
         <span class="spacer"></span>
         <label>展开层数</label>
@@ -189,8 +297,12 @@ onUnmounted(() => {
         <button class="primary" :disabled="pickerLoading" @click="searchObjects">{{ pickerLoading ? '搜索中' : '搜索对象' }}</button>
       </div>
       <p v-if="pickerError" class="error-banner">{{ pickerError }}</p>
+      <div v-if="pickerLoading && !pickerResults" class="loading">正在加载对象列表…</div>
       <div v-if="pickerResults">
-        <div class="hint">命中 {{ pickerResults.total }} 条（点击选中作为中心对象）</div>
+        <h3 style="margin-top:12px">{{ pickerTitle }}</h3>
+        <div class="hint">
+          当前范围：{{ pickerScope }} · 共 {{ pickerResults.total }} 条（点击任意一行，即以该对象为中心展开关系）
+        </div>
         <div v-if="!pickerResults.items.length" class="empty">没有匹配的对象</div>
         <ul class="list-plain">
           <li v-for="row in pickerResults.items" :key="row.globalId" style="cursor:pointer" @click="pickObject(row.globalId)">

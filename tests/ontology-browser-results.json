@@ -1,5 +1,5 @@
 {
-  "time": "2026-11-17T07:04:28.003Z",
+  "time": "2026-11-17T08:13:24.231Z",
   "base": "http://127.0.0.1:15181",
   "bases": {
     "bizApi": "http://127.0.0.1:18080/api",
@@ -16,11 +16,17 @@
     "refresh_retry",
     "business_jump",
     "source_freshness",
-    "display_regression"
+    "display_regression",
+    "explorer_single_page_no_pager",
+    "explorer_filter_alias_works",
+    "explorer_filter_fields_whitelisted",
+    "relations_default_picker",
+    "relations_empty_gid_hint",
+    "explorer_url_change_refresh"
   ],
   "summary": {
-    "total": 78,
-    "passed": 76,
+    "total": 112,
+    "passed": 110,
     "failed": 0,
     "skipped": 2,
     "hasSkipped": true
@@ -31,7 +37,7 @@
       "item": "桌面·全景总览 页面可进入且展示中文内容（5/5 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=8883",
+      "detail": "URL=http://127.0.0.1:15181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=5088",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -47,7 +53,7 @@
       "item": "桌面·通用对象探索器 页面可进入且展示中文内容（5/5 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=541",
+      "detail": "URL=http://127.0.0.1:15181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=524",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -63,7 +69,7 @@
       "item": "桌面·关系探索（列表 + 图） 页面可进入且展示中文内容（3/3 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/relations 命中=关系/图/展开 文本长度=483",
+      "detail": "URL=http://127.0.0.1:15181/#/relations 命中=关系/图/展开 文本长度=941",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -79,7 +85,7 @@
       "item": "桌面·变化与影响 页面可进入且展示中文内容（4/4 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/changes 命中=变化/影响/来源/时间 文本长度=14131",
+      "detail": "URL=http://127.0.0.1:15181/#/changes 命中=变化/影响/来源/时间 文本长度=12092",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -95,7 +101,7 @@
       "item": "桌面·模型与接入管理 页面可进入且展示中文内容（6/6 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=10913",
+      "detail": "URL=http://127.0.0.1:15181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=10921",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -119,7 +125,7 @@
       "item": "桌面·关系图具备展开层数/节点上限控件（1 层 2 层）",
       "status": "passed",
       "passed": true,
-      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-",
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 600\n已确认版本 600\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -135,7 +141,7 @@
       "item": "详情含当前属性 / 动态结果 / 正反向关联 / 最近变化 / 来源与映射",
       "status": "passed",
       "passed": true,
-      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T15:02:04\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 600\n已确认版本 600\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T16:11:53\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -143,7 +149,7 @@
       "item": "详情附「返回原业务对象」入口",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 600\n已确认版本 600\n演示时间 2026-11-17T10:15:",
       "group": "桌面",
       "case": "pages_desktop"
     },
@@ -159,7 +165,7 @@
       "item": "手机·全景总览 页面可进入且展示中文内容（5/5 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=8883",
+      "detail": "URL=http://127.0.0.1:15181/#/ 命中=总览/对象/关系/同步/搜索 文本长度=5088",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -175,7 +181,7 @@
       "item": "手机·通用对象探索器 页面可进入且展示中文内容（5/5 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=553",
+      "detail": "URL=http://127.0.0.1:15181/#/explorer 命中=对象/类型/列表/学生/教师 文本长度=536",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -191,7 +197,7 @@
       "item": "手机·关系探索（列表 + 图） 页面可进入且展示中文内容（3/3 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/relations 命中=关系/图/展开 文本长度=483",
+      "detail": "URL=http://127.0.0.1:15181/#/relations 命中=关系/图/展开 文本长度=941",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -207,7 +213,7 @@
       "item": "手机·变化与影响 页面可进入且展示中文内容（4/4 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/changes 命中=变化/影响/来源/时间 文本长度=14131",
+      "detail": "URL=http://127.0.0.1:15181/#/changes 命中=变化/影响/来源/时间 文本长度=12092",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -223,7 +229,7 @@
       "item": "手机·模型与接入管理 页面可进入且展示中文内容（6/6 个关键词）",
       "status": "passed",
       "passed": true,
-      "detail": "URL=http://127.0.0.1:15181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=11008",
+      "detail": "URL=http://127.0.0.1:15181/#/admin 命中=模型/映射/数据源/导入/对账/同步 文本长度=11016",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -247,7 +253,7 @@
       "item": "手机·关系图具备展开层数/节点上限控件（1 层 2 层）",
       "status": "passed",
       "passed": true,
-      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-",
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 600\n已确认版本 600\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -271,7 +277,7 @@
       "item": "手机端全局搜索可直接查到对象",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n",
       "group": "手机",
       "case": "pages_mobile"
     },
@@ -327,7 +333,7 @@
       "item": "通用对象探索器按定义渲染列表（学生列表可见且有行）",
       "status": "passed",
       "passed": true,
-      "detail": "行数=21 / 文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:",
+      "detail": "行数=21 / 文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 600\n已确认版本 600\n演示时间 2026-11-17T10:15:",
       "group": "模型驱动",
       "case": "model_driven_views"
     },
@@ -351,7 +357,7 @@
       "item": "详情页展示属性区 + 来源/映射 + 动态结果（详情数组驱动）",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T15:02:04\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 600\n已确认版本 600\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T16:11:53\n待处理 0\n立即重试刷新\n通用对象详情\n同一套视图",
       "group": "模型驱动",
       "case": "model_driven_views"
     },
@@ -375,7 +381,7 @@
       "item": "按姓名全局搜索直达学生 陈一诺",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n陈一诺student\n匹配字段 name · 来源 students / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 600\n已确认",
       "group": "交互",
       "case": "global_search"
     },
@@ -399,7 +405,7 @@
       "item": "页面层：教室可被全局搜索直达（无需教室专用页面）",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本",
       "group": "交互",
       "case": "global_search"
     },
@@ -415,7 +421,7 @@
       "item": "教室通用详情含来源/映射/关联对象",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:02:04\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 428\n已确认版本 428\n演示时间 ",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n命中 1 条\n关闭\n明理楼 101classroom\n匹配字段 name · 来源 classrooms / 1\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:11:53\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 600\n已确认版本 600\n演示时间 ",
       "group": "交互",
       "case": "global_search"
     },
@@ -455,7 +461,7 @@
       "item": "已打开视角①对象详情在 5 秒内自动更新",
       "status": "passed",
       "passed": true,
-      "detail": "{\"commitMs\":15,\"detailSec\":0.96,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
+      "detail": "{\"commitMs\":16,\"detailSec\":0.97,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
       "group": "交互",
       "case": "auto_update_5s"
     },
@@ -463,7 +469,7 @@
       "item": "已打开视角②变化与影响在 5 秒内自动更新",
       "status": "passed",
       "passed": true,
-      "detail": "{\"commitMs\":15,\"detailSec\":0.96,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
+      "detail": "{\"commitMs\":16,\"detailSec\":0.97,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
       "group": "交互",
       "case": "auto_update_5s"
     },
@@ -471,7 +477,7 @@
       "item": "从业务提交成功到多视角全部更新 ≤5 秒（记录真实耗时与条件）",
       "status": "passed",
       "passed": true,
-      "detail": "{\"commitMs\":15,\"detailSec\":0.96,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
+      "detail": "{\"commitMs\":16,\"detailSec\":0.97,\"changesSec\":0.02,\"pollIntervalSec\":0.3,\"condition\":\"本地无故障 / headless Chrome 已禁用后台节流 / 两个已打开视角\"}",
       "group": "交互",
       "case": "auto_update_5s"
     },
@@ -535,7 +541,7 @@
       "item": "平台页面为只读展示（无平台内写入入口伪装业务成功）",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:04:08\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 433\n已确认版本 433\n演示时间 2026-11-17T10:15:",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:12:43\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 605\n已确认版本 605\n演示时间 2026-11-17T10:15:",
       "group": "交互",
       "case": "business_jump"
     },
@@ -543,7 +549,7 @@
       "item": "接口 /sources/status 可读且含 sourceUp / status / lastSuccessSyncAt / demoTime",
       "status": "passed",
       "passed": true,
-      "detail": "{\"sourceId\":\"school-panorama\",\"sourceUp\":true,\"status\":\"SYNCED\",\"statusLabel\":\"已同步（新鲜）\",\"lastSuccessSyncAt\":\"2026-11-17T15:04:08\",\"demoTime\":\"2026-11-17T10:15:00\",\"snapshotRevision\":410,\"currentSourceRevision\":410,\"pendingCount\":0,\"processingCount\":0,\"errorCou",
+      "detail": "{\"sourceId\":\"school-panorama\",\"sourceUp\":true,\"status\":\"SYNCED\",\"statusLabel\":\"已同步（新鲜）\",\"lastSuccessSyncAt\":\"2026-11-17T16:12:43\",\"demoTime\":\"2026-11-17T10:15:00\",\"snapshotRevision\":547,\"currentSourceRevision\":547,\"pendingCount\":0,\"processingCount\":0,\"errorCou",
       "group": "状态",
       "case": "source_freshness"
     },
@@ -551,7 +557,7 @@
       "item": "顶栏/页面显示最后成功同步时间与数据新鲜度",
       "status": "passed",
       "passed": true,
-      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:04:08\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 433\n已确认版本 433\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T15:04:08\n待处理 0\n立即重试刷新\n全景总览\n对象/关系规模",
+      "detail": "学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:12:43\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 605\n已确认版本 605\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T16:12:43\n待处理 0\n立即重试刷新\n全景总览\n对象/关系规模",
       "group": "状态",
       "case": "source_freshness"
     },
@@ -599,7 +605,7 @@
       "item": "关系页未选对象时显示引导文案（请先选择中心对象）",
       "status": "passed",
       "passed": true,
-      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T15:04:08\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 433\n已确认版本 433\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T15:04:08\n待处理 0",
+      "detail": "文本片段=学校本体平台\n演示数据\n演示时间\n直达搜索\n已同步（新鲜）\n来源可用\n演示时间 2026-11-17T10:15:00\n最后成功同步 2026-11-17T16:12:43\n全景总览\n通用对象探索器\n关系探索\n变化与影响\n模型与接入管理\n平台版本 605\n已确认版本 605\n演示时间 2026-11-17T10:15:00 演示时间\n最后成功同步 2026-11-17T16:12:43\n待处理 0",
       "group": "缺陷修复",
       "case": "display_regression"
     },
@@ -634,6 +640,278 @@
       "detail": "引导=false / 暂无=false",
       "group": "缺陷修复",
       "case": "display_regression"
+    },
+    {
+      "item": "学校类型（2 条）保留「共 2 条」计数文本",
+      "status": "passed",
+      "passed": true,
+      "detail": "徽标=2 / 表格行数=2",
+      "group": "缺陷修复",
+      "case": "explorer_single_page_no_pager"
+    },
+    {
+      "item": "学校类型表格渲染 2 行（结构：table.desktop-only tbody tr）",
+      "status": "passed",
+      "passed": true,
+      "detail": "行数=2 / 徽标=2",
+      "group": "缺陷修复",
+      "case": "explorer_single_page_no_pager"
+    },
+    {
+      "item": "分页区显示「共 2 条 / 第 1 页 / 共 1 页」",
+      "status": "passed",
+      "passed": true,
+      "detail": "共 2 条 / 第 1 页 / 共 1 页",
+      "group": "缺陷修复",
+      "case": "explorer_single_page_no_pager"
+    },
+    {
+      "item": "只有一页时「首页/上一页/下一页/末页」四个按钮都不渲染（DOM 按钮数=0）",
+      "status": "passed",
+      "passed": true,
+      "detail": "分页区按钮=[]",
+      "group": "缺陷修复",
+      "case": "explorer_single_page_no_pager"
+    },
+    {
+      "item": "全页 getByRole(「下一页」) 计数为 0",
+      "status": "passed",
+      "passed": true,
+      "detail": "「下一页」元素数=0",
+      "group": "缺陷修复",
+      "case": "explorer_single_page_no_pager"
+    },
+    {
+      "item": "学生类型提供「性别」筛选框（标签用中文 displayName）",
+      "status": "passed",
+      "passed": true,
+      "detail": "「筛选 性别」输入框数量=1；页面文本含「性别」=true",
+      "group": "缺陷修复",
+      "case": "explorer_filter_alias_works"
+    },
+    {
+      "item": "「性别=男」应用筛选后条数减少（16 < 32）",
+      "status": "passed",
+      "passed": true,
+      "detail": "筛选前=32 / 筛选后=16",
+      "group": "缺陷修复",
+      "case": "explorer_filter_alias_works"
+    },
+    {
+      "item": "筛选后「共 N 条」与表格行数一致（16=16）",
+      "status": "passed",
+      "passed": true,
+      "detail": "徽标=16 / 行数=16",
+      "group": "缺陷修复",
+      "case": "explorer_filter_alias_works"
+    },
+    {
+      "item": "筛选后给出结果说明文案（已按当前条件筛选 + 共 16 条）",
+      "status": "passed",
+      "passed": true,
+      "detail": "说明块=已按当前条件筛选，共 16 条",
+      "group": "缺陷修复",
+      "case": "explorer_filter_alias_works"
+    },
+    {
+      "item": "筛选请求带 filters=<JSON> 参数（不是被静默丢弃的平铺写法）",
+      "status": "passed",
+      "passed": true,
+      "detail": "http://127.0.0.1:15181/ontology-api/objects?type=student&page=1&size=20&filters=%7B%22gender%22%3A%22%E7%94%B7%22%7D",
+      "group": "缺陷修复",
+      "case": "explorer_filter_alias_works"
+    },
+    {
+      "item": "点「清空」后回到全量 32 条",
+      "status": "passed",
+      "passed": true,
+      "detail": "清空后徽标=32（筛选前=32）",
+      "group": "缺陷修复",
+      "case": "explorer_filter_alias_works"
+    },
+    {
+      "item": "清空后本页显示 20 行且版式说明「条件已清空、共 32 条」",
+      "status": "passed",
+      "passed": true,
+      "detail": "行数=20 / 说明块=条件已清空，已显示全部 共 32 条，本页显示 20 条",
+      "group": "缺陷修复",
+      "case": "explorer_filter_alias_works"
+    },
+    {
+      "item": "筛选项 = 模型 filterableFields ∩ origin=SOURCE（按 displayName 落标签）",
+      "status": "passed",
+      "passed": true,
+      "detail": "模型复算={\"school\":[],\"class\":[\"年级\"],\"student\":[\"性别\"],\"teacher\":[\"授课科目\"],\"course\":[\"科目\",\"类别\"],\"lessonSession\":[\"上课日期\"],\"classroom\":[\"教室类型\",\"楼栋\"]} / 期望={\"school\":[],\"class\":[\"年级\"],\"student\":[\"性别\"],\"teacher\":[\"授课科目\"],\"course\":[\"科目\",\"类别\"],\"lessonSession\":[\"上课日期\"],\"classroom\":[\"教室类型\",\"楼栋\"]}",
+      "group": "缺陷修复",
+      "case": "explorer_filter_fields_whitelisted"
+    },
+    {
+      "item": "school 筛选栏标签集合 = [空] 且可见",
+      "status": "passed",
+      "passed": true,
+      "detail": "实际标签=[] / 期望=[] / 可见=true / 工具栏=搜索\n应用筛选\n清空\n共 2 条",
+      "group": "缺陷修复",
+      "case": "explorer_filter_fields_whitelisted"
+    },
+    {
+      "item": "class 筛选栏标签集合 = [年级] 且可见",
+      "status": "passed",
+      "passed": true,
+      "detail": "实际标签=[\"年级\"] / 期望=[\"年级\"] / 可见=true / 工具栏=搜索\n年级\n应用筛选\n清空\n共 4 条",
+      "group": "缺陷修复",
+      "case": "explorer_filter_fields_whitelisted"
+    },
+    {
+      "item": "student 筛选栏标签集合 = [性别] 且可见",
+      "status": "passed",
+      "passed": true,
+      "detail": "实际标签=[\"性别\"] / 期望=[\"性别\"] / 可见=true / 工具栏=搜索\n性别\n应用筛选\n清空\n共 32 条",
+      "group": "缺陷修复",
+      "case": "explorer_filter_fields_whitelisted"
+    },
+    {
+      "item": "teacher 筛选栏标签集合 = [授课科目] 且可见",
+      "status": "passed",
+      "passed": true,
+      "detail": "实际标签=[\"授课科目\"] / 期望=[\"授课科目\"] / 可见=true / 工具栏=搜索\n授课科目\n应用筛选\n清空\n共 14 条",
+      "group": "缺陷修复",
+      "case": "explorer_filter_fields_whitelisted"
+    },
+    {
+      "item": "course 筛选栏标签集合 = [科目、类别] 且可见",
+      "status": "passed",
+      "passed": true,
+      "detail": "实际标签=[\"科目\",\"类别\"] / 期望=[\"科目\",\"类别\"] / 可见=true / 工具栏=搜索\n科目\n类别\n应用筛选\n清空\n共 8 条",
+      "group": "缺陷修复",
+      "case": "explorer_filter_fields_whitelisted"
+    },
+    {
+      "item": "lessonSession 筛选栏标签集合 = [上课日期] 且可见",
+      "status": "passed",
+      "passed": true,
+      "detail": "实际标签=[\"上课日期\"] / 期望=[\"上课日期\"] / 可见=true / 工具栏=搜索\n上课日期\n应用筛选\n清空\n共 24 条",
+      "group": "缺陷修复",
+      "case": "explorer_filter_fields_whitelisted"
+    },
+    {
+      "item": "classroom 筛选栏标签集合 = [教室类型、楼栋] 且可见",
+      "status": "passed",
+      "passed": true,
+      "detail": "实际标签=[\"教室类型\",\"楼栋\"] / 期望=[\"教室类型\",\"楼栋\"] / 可见=true / 工具栏=搜索\n教室类型\n楼栋\n应用筛选\n清空\n共 11 条",
+      "group": "缺陷修复",
+      "case": "explorer_filter_fields_whitelisted"
+    },
+    {
+      "item": "任何类型都不出现「学校ID/班级ID/教师ID/id」筛选标签",
+      "status": "passed",
+      "passed": true,
+      "detail": "全部标签=[\"年级\",\"性别\",\"授课科目\",\"科目\",\"类别\",\"上课日期\",\"教室类型\",\"楼栋\"] / 命中=[]",
+      "group": "缺陷修复",
+      "case": "explorer_filter_fields_whitelisted"
+    },
+    {
+      "item": "直接打开 /#/relations 就有可点的对象列表（≥8 行）",
+      "status": "passed",
+      "passed": true,
+      "detail": "对象列表行数=10 / 首行=初一（1）班班级gid:school-panorama:class:1",
+      "group": "缺陷修复",
+      "case": "relations_default_picker"
+    },
+    {
+      "item": "起始列表给出标题与范围说明（从下列对象开始探索 / 当前范围）",
+      "status": "passed",
+      "passed": true,
+      "detail": "…级 学生 教师 课程 具体授课安排 教室 关键字 搜索对象 从下列对象开始探索 当前范围：全部类型 · 共 95 条（点击任意一行，即以该对象为中心展开关系） 初一（1）班班级gid:school-panorama:class:1 初一（2）班班级gid:school-panor",
+      "group": "缺陷修复",
+      "case": "relations_default_picker"
+    },
+    {
+      "item": "点第一行即以该对象为中心展开关系（关系列表有行）",
+      "status": "passed",
+      "passed": true,
+      "detail": "关系列表行数=17",
+      "group": "缺陷修复",
+      "case": "relations_default_picker"
+    },
+    {
+      "item": "关系图渲染出节点（svg circle > 0）",
+      "status": "passed",
+      "passed": true,
+      "detail": "svg circle=17 / 关系图区块=true",
+      "group": "缺陷修复",
+      "case": "relations_default_picker"
+    },
+    {
+      "item": "展开后 URL 带 globalId 且页面显示「关系总数」",
+      "status": "passed",
+      "passed": true,
+      "detail": "URL=http://127.0.0.1:15181/#/relations?globalId=gid:school-panorama:class:1&depth=1&limit=50&page=1 / 关系总数=true",
+      "group": "缺陷修复",
+      "case": "relations_default_picker"
+    },
+    {
+      "item": "正常路径（带 globalId）确实请求了 /relations（计数器有效性基线 > 0）",
+      "status": "passed",
+      "passed": true,
+      "detail": "基线请求数=1",
+      "group": "缺陷修复",
+      "case": "relations_empty_gid_hint"
+    },
+    {
+      "item": "globalId 为空时点「展开关系」给出「请先输入 globalId」提示",
+      "status": "passed",
+      "passed": true,
+      "detail": "提示文本=请先输入 globalId，或从下方对象列表中选择一个对象",
+      "group": "缺陷修复",
+      "case": "relations_empty_gid_hint"
+    },
+    {
+      "item": "globalId 为空时点「展开关系」不发 /relations 请求",
+      "status": "passed",
+      "passed": true,
+      "detail": "点击前=1 / 点击后=1",
+      "group": "缺陷修复",
+      "case": "relations_empty_gid_hint"
+    },
+    {
+      "item": "提示以错误条渲染（.error-banner）且焦点回到 globalId 输入框",
+      "status": "passed",
+      "passed": true,
+      "detail": ".error-banner 数量=1 / 焦点在输入框=true",
+      "group": "缺陷修复",
+      "case": "relations_empty_gid_hint"
+    },
+    {
+      "item": "同一标签页把 URL 换成 ?type=class 后标题跟随（当前类型：班级）",
+      "status": "passed",
+      "passed": true,
+      "detail": "导航=true / URL=http://127.0.0.1:15181/#/explorer?type=class / 副标题=类型、列表列、可搜索/可筛选字段全部来自模型定义；当前类型：班级",
+      "group": "缺陷修复",
+      "case": "explorer_url_change_refresh"
+    },
+    {
+      "item": "表格数据跟随刷新（班级 4 行，不是学生 20 行）",
+      "status": "passed",
+      "passed": true,
+      "detail": "行数=4 / 换 URL 前徽标=32 后=4",
+      "group": "缺陷修复",
+      "case": "explorer_url_change_refresh"
+    },
+    {
+      "item": "「共 N 条」与表格行数三者一致（标题/表格/条数=4）",
+      "status": "passed",
+      "passed": true,
+      "detail": "徽标=4 / 行数=4",
+      "group": "缺陷修复",
+      "case": "explorer_url_change_refresh"
+    },
+    {
+      "item": "一次 URL 变化只补发 1 次 /objects 请求（去重生效）",
+      "status": "passed",
+      "passed": true,
+      "detail": "本次 /objects 请求数=1 / 最近 URL=[\"http://127.0.0.1:15181/ontology-api/objects?type=class&page=1&size=20\"]",
+      "group": "缺陷修复",
+      "case": "explorer_url_change_refresh"
     },
     {
       "item": "验收结束恢复初始演示数据",

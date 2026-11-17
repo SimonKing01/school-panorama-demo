@@ -172,6 +172,23 @@ public class OntologyQueryService {
                 "registry", spi.registrySummary());
     }
 
+    /**
+     * 该类型声明的可筛选字段。
+     *
+     * <p>契约 03 §2.6 允许两种等价写法：{@code ?filters=<JSON>} 或按类型的
+     * {@code filterableFields} 平铺（如 {@code ?schoolId=1&classId=1}）。
+     * 平铺写法下只有落在这里的键才允许当成筛选条件，其余键一律忽略；</p>
+     *
+     * @param type 对象类型；为空（全局列表）时无法确定可筛字段，返回空集合
+     * @return 可筛选字段名集合，未注册的类型返回空集合而不是抛异常（未知类型本就走查询侧报错）
+     */
+    public Set<String> filterableFieldsOf(String type) {
+        if (type == null || type.isBlank() || !registry.hasType(type)) {
+            return new LinkedHashSet<>();
+        }
+        return new LinkedHashSet<>(registry.typeOf(type).filterableFields);
+    }
+
     public Map<String, Object> listObjects(String type, String q, Map<String, String> filters,
                                            int page, int size, LocalDateTime queryTime) {
         List<String> searchFields = searchFieldsOf(type);

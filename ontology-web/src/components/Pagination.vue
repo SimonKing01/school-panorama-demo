@@ -15,9 +15,16 @@ function go(page: number): void {
   <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; font-size:13px">
     <span>共 {{ total }} 条 / 第 {{ page }} 页 / 共 {{ pages }} 页</span>
     <span class="spacer"></span>
-    <button :disabled="page <= 1" @click="go(1)">首页</button>
-    <button :disabled="page <= 1" @click="go(page - 1)">上一页</button>
-    <button :disabled="page >= pages" @click="go(page + 1)">下一页</button>
-    <button :disabled="page >= pages" @click="go(pages)">末页</button>
+    <!--
+      只有一页时不渲染导航按钮（缺陷 1）：这 4 个按钮会全部 disabled，
+      外观与可点按钮差别很小，用户点了没反应就会判定「按钮按不动」。
+      计数文本保留，页面仍能看出总条数。
+    -->
+    <template v-if="pages > 1">
+      <button :disabled="page <= 1" @click="go(1)">首页</button>
+      <button :disabled="page <= 1" @click="go(page - 1)">上一页</button>
+      <button :disabled="page >= pages" @click="go(page + 1)">下一页</button>
+      <button :disabled="page >= pages" @click="go(pages)">末页</button>
+    </template>
   </div>
 </template>

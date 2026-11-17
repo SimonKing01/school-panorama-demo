@@ -184,6 +184,76 @@ async function clickFirstResult(page, text) {
   return false
 }
 
+// ── 探索器 / 关系探索专用探针（缺陷 1/2/3 防回归用）────────────────────────
+/**
+ * 读对象探索器工具栏右上角「共 N 条」徽标。
+ * 取不到返回 -1：断言里直接得到 -1 就能看出「徽标根本没了」，而不是被 0 悄悄带过。
+ * 只认纯「共 N 条」的徽标，避免误取手机卡片里的类型徽标。
+ */
+async function explorerTotal(page) {
+  const texts = await page.locator('.badge.info').allInnerTexts().catch(() => [])
+  for (const t of texts) {
+    const m = String(t).trim().match(/^共\s*(\d+)\s*条$/)
+    if (m) return Number(m[1])
+  }
+  return -1
+}
+
+/** 表格数据行数：只数桌面表格 tbody（手机卡片列表是同一份数据的另一层渲染，数进来会翻倍）。 */
+async function desktopRowCount(page) {
+  return await page.locator('table.desktop-only tbody tr').count().catch(() => 0)
+}
+
+/** 轮询等「共 N 条」变成期望值：请求是异步的，固定 sleep 既慢又会在慢机器上误判。 */
+async function waitExplorerTotal(page, expected, timeout = 8000) {
+  const started = Date.now()
+  while (Date.now() - started < timeout) {
+    if (await explorerTotal(page) === expected) return true
+    await page.waitForTimeout(120)
+  }
+  return false
+}
+
+/**
+ * 当前类型渲染出来的筛选框标签集合。
+ * 取 input[placeholder="筛选 X"] 的前缀：placeholder 与可见 <label> 同源于 filterLabel()，
+ * 既覆盖了「用户能看见的标签」，也不依赖 <label> 在 DOM 里的相对位置。
+ */
+async function filterLabels(page) {
+  return await page.evaluate(() => Array.from(
+    document.querySelectorAll('.toolbar input[placeholder^="筛选 "]'),
+  ).map(i => String(i.getAttribute('placeholder') || '').replace(/^筛选\s*/, '').trim())).catch(() => [])
+}
+
+/** 采集页面发出的请求 URL（返回的数组是活的，断言时取长度差即可）。 */
+function trackRequests(page, predicate) {
+  const hits = []
+  page.on('request', r => {
+    const u = r.url()
+    if (predicate(u)) hits.push(u)
+  })
+  return hits
+}
+
+/**
+ * 只截取命中位置附近的片段。
+ * 整页 bodyText 开头永远是导航与版本条，直接 slice(0,220) 得到的 detail 里看不到被测文案，
+ * 失败时等于没有线索 —— 断言 detail 必须能一眼看出「哪里不对」。
+ */
+function snip(text, re, width = 140) {
+  const s = String(text || '').replace(/\s+/g, ' ')
+  const m = s.match(re)
+  if (!m) return s.slice(0, width) + (s.length > width ? '…' : '')
+  const start = Math.max(0, m.index - 30)
+  const head = start > 0 ? '…' : ''
+  return head + s.slice(start, start + width)
+}
+
+/** 读某类提示块（如结果说明 .basis / 错误条 .error-banner）的可见文本，取不到返回 ''。 */
+async function blockText(page, selector) {
+  return await page.locator(selector).first().innerText().catch(() => '') || ''
+}
+
 // 通用详情路由（与 ontology-web/src/router.ts 一致；hash 模式）
 const DETAIL_URL_RE = /\/detail\?globalId=/
 
@@ -249,6 +319,13 @@ const CASES = [
   { name: 'business_jump', title: '业务按钮跳转原业务入口并沿用原校验', group: '交互' },
   { name: 'source_freshness', title: '来源不可用与新鲜度/最后成功同步时间显示', group: '状态' },
   { name: 'display_regression', title: '展示缺陷防回归：变化差异无空行 / 关系页空态引导', group: '缺陷修复' },
+  // 本轮 BugFix 回归新增（工程师修复「按钮按不动 / 关系页空白」后的永久断言）
+  { name: 'explorer_single_page_no_pager', title: '缺陷 1：单页时不渲染首页/上一页/下一页/末页，保留「共 N 条」', group: '缺陷修复' },
+  { name: 'explorer_filter_alias_works', title: '缺陷 2：筛选真的生效（filters=<JSON>）、徽标=行数、清空回到全量', group: '缺陷修复' },
+  { name: 'explorer_filter_fields_whitelisted', title: '缺陷 2：筛选项白名单（filterableFields ∩ SOURCE 属性）逐类型', group: '缺陷修复' },
+  { name: 'relations_default_picker', title: '缺陷 3：直接打开关系页即有可点对象列表并展开列表+图', group: '缺陷修复' },
+  { name: 'relations_empty_gid_hint', title: '缺陷 3：globalId 为空时给提示且不发 /relations 请求', group: '缺陷修复' },
+  { name: 'explorer_url_change_refresh', title: '缺陷 2：同标签页换 URL 后标题/表格/条数一起刷新且只发 1 次请求', group: '缺陷修复' },
 ]
 
 const PAGES = [
@@ -808,6 +885,317 @@ async function caseDisplayRegression(ctx) {
   } finally { await page.close() }
 }
 
+/**
+ * 缺陷 1 防回归：只有一页时不再渲染「首页/上一页/下一页/末页」。
+ *
+ * <p>原实现这 4 个按钮常驻但全部 disabled，外观与可点按钮差别很小；用户点了没反应，
+ * 结论就是「分页按钮坏了」。修法是 pages<=1 时不渲染按钮、保留「共 N 条」计数文本。
+ * 因此这里必须同时断言两件事：计数文本还在（用户仍知道总数）、按钮真的不在 DOM 里。</p>
+ */
+async function caseExplorerSinglePageNoPager(ctx) {
+  const R = forCase('explorer_single_page_no_pager', '缺陷修复')
+  const page = await ctx.desktop.newPage()
+  watchConsole(page, 'desktop-pager')
+  try {
+    // 学校类型只有 2 条对象 → 必然单页
+    await goto(page, '/explorer?type=school', '21-单页不渲染翻页按钮-桌面.png')
+    await waitExplorerTotal(page, 2)
+    const total = await explorerTotal(page)
+    const rows = await desktopRowCount(page)
+    const text = await bodyText(page)
+    R.check('学校类型（2 条）保留「共 2 条」计数文本',
+      total === 2 && /共\s*2\s*条/.test(text), `徽标=${total} / 表格行数=${rows}`)
+    R.check('学校类型表格渲染 2 行（结构：table.desktop-only tbody tr）',
+      rows === 2, `行数=${rows} / 徽标=${total}`)
+    // 分页区的真实结构：计数 span 的父容器里不应有任何 <button>
+    const pager = await page.evaluate(() => {
+      const span = Array.from(document.querySelectorAll('span'))
+        .find(s => /共\s*\d+\s*条\s*\/\s*第\s*\d+\s*页/.test(s.textContent || ''))
+      if (!span) return null
+      const box = span.parentElement
+      return {
+        text: (span.textContent || '').replace(/\s+/g, ' ').trim(),
+        buttons: Array.from(box.querySelectorAll('button')).map(b => (b.textContent || '').trim()),
+      }
+    })
+    R.check('分页区显示「共 2 条 / 第 1 页 / 共 1 页」',
+      !!pager && /共\s*1\s*页/.test(pager.text), pager ? pager.text : '未找到分页计数容器（结构可能已变）')
+    const pagerButtons = pager ? pager.buttons : ['<分页区未定位>']
+    R.check('只有一页时「首页/上一页/下一页/末页」四个按钮都不渲染（DOM 按钮数=0）',
+      pagerButtons.length === 0, `分页区按钮=${JSON.stringify(pagerButtons)}`)
+    // 双保险：整页也不应存在名为「下一页」的可点元素
+    const domNext = await page.getByRole('button', { name: '下一页', exact: true }).count().catch(() => -1)
+    R.check('全页 getByRole(「下一页」) 计数为 0', domNext === 0, `「下一页」元素数=${domNext}`)
+  } finally { await page.close() }
+}
+
+/**
+ * 缺陷 2 防回归：筛选必须真的生效，且「应用/清空」要有看得见的反馈。
+ *
+ * <p>真根因在服务端：Spring 把未声明的平铺参数（?gender=男）静默丢弃，筛选恒返回全量，
+ * 表现与「按钮按不动」完全一致。前端改用契约 03 §2.6 的 filters=<JSON> 首选写法。
+ * 本用例同时守住三件事：条数真的变了、徽标与表格行数一致、请求确实走了 filters= 参数。</p>
+ */
+async function caseExplorerFilterAliasWorks(ctx) {
+  const R = forCase('explorer_filter_alias_works', '缺陷修复')
+  const page = await ctx.desktop.newPage()
+  watchConsole(page, 'desktop-filter')
+  try {
+    const objReqs = trackRequests(page, u => u.includes('/ontology-api/objects?'))
+    await goto(page, '/explorer?type=student', '22-学生性别筛选前后-桌面.png')
+    await waitExplorerTotal(page, 32)
+    const baseTotal = await explorerTotal(page)
+
+    const input = page.locator('.toolbar input[placeholder="筛选 性别"]').first()
+    const hasInput = await input.count().catch(() => 0)
+    R.check('学生类型提供「性别」筛选框（标签用中文 displayName）',
+      hasInput > 0, `「筛选 性别」输入框数量=${hasInput}；页面文本含「性别」=${(await bodyText(page)).includes('性别')}`)
+
+    let filtered = -1
+    let rows = 0
+    let notice = ''
+    if (hasInput > 0) {
+      await input.fill('男')
+      await page.getByRole('button', { name: '应用筛选', exact: true }).first().click().catch(() => {})
+      // 等徽标到位而不是固定 sleep：徽标与表格是同一份 data 渲染，等它就是等数据
+      await waitExplorerTotal(page, 16)
+      filtered = await explorerTotal(page)
+      rows = await desktopRowCount(page)
+      notice = await blockText(page, 'p.basis')
+      await page.screenshot({ path: path.join(SHOTS, '22b-学生性别筛选结果-桌面.png'), fullPage: true }).catch(() => {})
+    }
+    R.check('「性别=男」应用筛选后条数减少（16 < 32）',
+      filtered === 16 && filtered < baseTotal, `筛选前=${baseTotal} / 筛选后=${filtered}`)
+    R.check('筛选后「共 N 条」与表格行数一致（16=16）',
+      filtered === rows && filtered === 16, `徽标=${filtered} / 行数=${rows}`)
+    R.check('筛选后给出结果说明文案（已按当前条件筛选 + 共 16 条）',
+      /已按当前条件筛选/.test(notice) && /共\s*16\s*条/.test(notice),
+      `说明块=${notice || '（未渲染 p.basis）'}`)
+    // 契约 03 §2.6 首选写法：filters=<JSON>；平铺写法被服务端丢弃正是本轮真根因
+    const filteredReq = [...objReqs].reverse().find(u => u.includes('filters=')) || ''
+    R.check('筛选请求带 filters=<JSON> 参数（不是被静默丢弃的平铺写法）',
+      /filters=(%7B|\{)/.test(filteredReq), filteredReq || '未捕获到带 filters 的 /objects 请求')
+
+    let cleared = -1
+    let clearedRows = 0
+    let clearedNotice = ''
+    if (hasInput > 0) {
+      await page.getByRole('button', { name: '清空', exact: true }).first().click().catch(() => {})
+      await waitExplorerTotal(page, 32)
+      cleared = await explorerTotal(page)
+      clearedRows = await desktopRowCount(page)
+      clearedNotice = await blockText(page, 'p.basis')
+    }
+    R.check('点「清空」后回到全量 32 条', cleared === 32, `清空后徽标=${cleared}（筛选前=${baseTotal}）`)
+    R.check('清空后本页显示 20 行且版式说明「条件已清空、共 32 条」',
+      clearedRows === 20 && /条件已清空/.test(clearedNotice) && /共\s*32\s*条/.test(clearedNotice),
+      `行数=${clearedRows} / 说明块=${clearedNotice || '（未渲染 p.basis）'}`)
+  } finally { await page.close() }
+}
+
+/**
+ * 缺陷 2 防回归（白名单）：筛选项只保留 filterableFields ∩ 真实存在的 SOURCE 属性。
+ *
+ * <p>schoolId / classId / teacherId 是外键，投影里没有这些键；id 是技术主键（模型属性里没有）。
+ * 按这些字段筛选 SQL 恒不匹配 → 永远 0 条，用户填一次就判定「探索器坏了」。
+ * 预期：学校 0 / 班级 1（年级）/ 学生 1（性别）/ 教师 1（授课科目）/
+ * 课程 2（科目、类别）/ 具体授课安排 1（上课日期）/ 教室 2（教室类型、楼栋）。</p>
+ */
+async function caseExplorerFilterFieldsWhitelisted(ctx) {
+  const R = forCase('explorer_filter_fields_whitelisted', '缺陷修复')
+  const page = await ctx.desktop.newPage()
+  watchConsole(page, 'desktop-whitelist')
+  try {
+    const expected = {
+      school: [],
+      class: ['年级'],
+      student: ['性别'],
+      teacher: ['授课科目'],
+      course: ['科目', '类别'],
+      lessonSession: ['上课日期'],
+      classroom: ['教室类型', '楼栋'],
+    }
+    // 用 /model/types 复算一次白名单：确认前端是「模型 filterableFields ∩ origin=SOURCE」算出来的，
+    // 而不是把期望值硬编码进组件（哪天字段改名/新增，这一项会先失败）。
+    const model = await ontoGet('/model/types')
+    const defs = model && Array.isArray(model.types) ? model.types : []
+    const derived = {}
+    for (const def of defs) {
+      const sourceNames = new Set((def.detailFields || [])
+        .filter(f => f && f.origin === 'SOURCE').map(f => f.name))
+      const labels = {}
+      for (const f of def.detailFields || []) if (f && f.name) labels[f.name] = f.displayName
+      derived[def.id] = (def.filterableFields || [])
+        .filter(n => sourceNames.has(n)).map(n => labels[n] || n)
+    }
+    R.check('筛选项 = 模型 filterableFields ∩ origin=SOURCE（按 displayName 落标签）',
+      Object.keys(expected).every(t => JSON.stringify(derived[t]) === JSON.stringify(expected[t])),
+      `模型复算=${JSON.stringify(derived)} / 期望=${JSON.stringify(expected)}`)
+
+    const allLabels = []
+    for (const [type, want] of Object.entries(expected)) {
+      await goto(page, '/explorer?type=' + type)
+      await page.waitForTimeout(600)
+      const labels = await filterLabels(page)
+      allLabels.push(...labels)
+      const text = await bodyText(page)
+      const visible = want.every(w => text.includes(w))
+      const bar = await blockText(page, '.toolbar')
+      R.check(`${type} 筛选栏标签集合 = [${want.join('、') || '空'}] 且可见`,
+        JSON.stringify(labels) === JSON.stringify(want) && visible,
+        `实际标签=${JSON.stringify(labels)} / 期望=${JSON.stringify(want)} / 可见=${visible} / 工具栏=${bar.slice(0, 120)}`)
+    }
+    // 死控件断言：外键与技术主键绝不能再出现在筛选栏
+    const bad = allLabels.filter(l => /学校\s*ID|班级\s*ID|教师\s*ID/i.test(l)
+      || /^(id|Id|ID)$/.test(l) || /^(schoolId|classId|teacherId)$/.test(l))
+    R.check('任何类型都不出现「学校ID/班级ID/教师ID/id」筛选标签',
+      bad.length === 0, `全部标签=${JSON.stringify(allLabels)} / 命中=${JSON.stringify(bad)}`)
+  } finally { await page.close() }
+}
+
+/**
+ * 缺陷 3 防回归：直接打开关系页不能是空白。
+ *
+ * <p>原实现在未选中心对象时只渲染引导卡 + 一整屏空白，没有可点的起点，
+ * 用户直接得出「关系探索是空的」。现在自动铺出首类型对象列表（不足 8 条时退化为全部类型），
+ * 点任意一行即以该对象为中心展开关系列表与关系图。</p>
+ */
+async function caseRelationsDefaultPicker(ctx) {
+  const R = forCase('relations_default_picker', '缺陷修复')
+  const page = await ctx.desktop.newPage()
+  watchConsole(page, 'desktop-rel-default')
+  try {
+    await goto(page, '/relations', '23-关系页默认对象列表-桌面.png')
+    await page.waitForSelector('.list-plain li', { timeout: 8000 }).catch(() => {})
+    const rows = await page.locator('.list-plain li').count().catch(() => 0)
+    const text = await bodyText(page)
+    R.check('直接打开 /#/relations 就有可点的对象列表（≥8 行）',
+      rows >= 8, `对象列表行数=${rows} / 首行=${(await page.locator('.list-plain li').first().innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 80)}`)
+    R.check('起始列表给出标题与范围说明（从下列对象开始探索 / 当前范围）',
+      /从下列对象开始探索/.test(text) && /当前范围/.test(text), snip(text, /从下列对象开始探索/))
+
+    let relRows = 0
+    let circles = 0
+    let afterText = ''
+    if (rows > 0) {
+      await page.locator('.list-plain li').first().click().catch(() => {})
+      await page.waitForFunction(
+        () => document.querySelectorAll('table.desktop-only tbody tr').length > 0,
+        { timeout: 8000 },
+      ).catch(() => {})
+      await page.waitForTimeout(500)
+      relRows = await desktopRowCount(page)
+      circles = await page.locator('svg circle').count().catch(() => 0)
+      afterText = await bodyText(page)
+      await page.screenshot({ path: path.join(SHOTS, '23b-关系页点选对象后-桌面.png'), fullPage: true }).catch(() => {})
+    }
+    R.check('点第一行即以该对象为中心展开关系（关系列表有行）',
+      relRows > 0, `关系列表行数=${relRows}`)
+    R.check('关系图渲染出节点（svg circle > 0）',
+      circles > 0, `svg circle=${circles} / 关系图区块=${/关系图/.test(afterText)}`)
+    R.check('展开后 URL 带 globalId 且页面显示「关系总数」',
+      /globalId=/.test(page.url()) && /关系总数/.test(afterText),
+      `URL=${page.url()} / 关系总数=${/关系总数/.test(afterText)}`)
+  } finally { await page.close() }
+}
+
+/**
+ * 缺陷 3 防回归（空 globalId）：点「展开关系」必须给明确提示且不发请求。
+ *
+ * <p>原实现 globalId 为空时静默 return：页面毫无变化、只剩空白，用户只能判定按钮坏了。
+ * 现在显式报错并把焦点交给输入框，且明确不发 /relations 请求（避免无意义调用）。
+ * 用例先用带 globalId 的正常路径确认计数器有效，再清空后点击——否则「0 次请求」可能只是计数器没挂上。</p>
+ */
+async function caseRelationsEmptyGidHint(ctx) {
+  const R = forCase('relations_empty_gid_hint', '缺陷修复')
+  const page = await ctx.desktop.newPage()
+  watchConsole(page, 'desktop-rel-empty')
+  try {
+    const relReqs = trackRequests(page,
+      u => u.includes('/ontology-api/objects/') && /\/relations(\?|$)/.test(u))
+    await goto(page, '/relations?globalId=' + encodeURIComponent(GID_STUDENT),
+      '24-关系页清空globalId提示-桌面.png')
+    await page.waitForFunction(
+      () => document.querySelectorAll('table.desktop-only tbody tr').length > 0,
+      { timeout: 8000 },
+    ).catch(() => {})
+    const baseline = relReqs.length
+
+    const input = page.locator('input[placeholder*="gid:school-panorama"]').first()
+    const hasInput = await input.count().catch(() => 0)
+    let after = baseline
+    let errText = ''
+    let banner = 0
+    let focused = false
+    if (hasInput > 0) {
+      await input.fill('')
+      await page.getByRole('button', { name: '展开关系', exact: true }).first().click().catch(() => {})
+      await page.waitForTimeout(700)
+      after = relReqs.length
+      errText = await blockText(page, '.error-banner')
+      banner = await page.locator('.error-banner').count().catch(() => 0)
+      focused = await page.evaluate(() => {
+        const el = document.activeElement
+        return !!el && el.tagName === 'INPUT' && /gid:school-panorama/.test(el.getAttribute('placeholder') || '')
+      }).catch(() => false)
+    }
+    R.check('正常路径（带 globalId）确实请求了 /relations（计数器有效性基线 > 0）',
+      baseline > 0, `基线请求数=${baseline}`)
+    R.check('globalId 为空时点「展开关系」给出「请先输入 globalId」提示',
+      /请先输入\s*globalId/.test(errText), `提示文本=${errText || '（未渲染 .error-banner）'}`)
+    R.check('globalId 为空时点「展开关系」不发 /relations 请求',
+      after === baseline, `点击前=${baseline} / 点击后=${after}`)
+    R.check('提示以错误条渲染（.error-banner）且焦点回到 globalId 输入框',
+      banner > 0 && focused, `.error-banner 数量=${banner} / 焦点在输入框=${focused}`)
+  } finally { await page.close() }
+}
+
+/**
+ * 缺陷 2 防回归（外部 URL 变化）：同一标签页换 URL，标题/表格/条数必须一起变。
+ *
+ * <p>原实现只在挂载与点击时加载：地址栏换成 ?type=class 后标题跟着变、表格还是旧数据——
+ * 与「点了没反应」是同一类观感问题。现在 watch(route.query) 补一次查询，并用请求指纹去重，
+ * 保证一次 URL 变化只补发 1 次请求（否则一次点击打两次接口、分页还会闪）。</p>
+ */
+async function caseExplorerUrlChangeRefresh(ctx) {
+  const R = forCase('explorer_url_change_refresh', '缺陷修复')
+  const page = await ctx.desktop.newPage()
+  watchConsole(page, 'desktop-url-change')
+  try {
+    await goto(page, '/explorer?type=student', '25-同标签页换URL前-桌面.png')
+    await waitExplorerTotal(page, 32)
+    const beforeTotal = await explorerTotal(page)
+    // 等挂载期的 revision 轮询首轮刷新落定，否则它打的那次 /objects 会被算进本次增量
+    await page.waitForTimeout(1500)
+    const objReqs = trackRequests(page, u => u.includes('/ontology-api/objects?'))
+    const base = objReqs.length
+
+    let navOk = true
+    try {
+      await page.goto(BASE + '/#/explorer?type=class', { waitUntil: 'domcontentloaded', timeout: 30000 })
+    } catch {
+      // hash-only 变化属于同文档跳转，个别环境会报导航中断：退化为直接改 hash，语义等价
+      navOk = await page.evaluate(() => { window.location.hash = '#/explorer?type=class'; return true })
+        .catch(() => false)
+    }
+    await waitExplorerTotal(page, 4)
+    const afterTotal = await explorerTotal(page)
+    const rows = await desktopRowCount(page)
+    const sub = await blockText(page, '.page-head .sub')
+    await page.screenshot({ path: path.join(SHOTS, '25b-同标签页换URL后-桌面.png'), fullPage: true }).catch(() => {})
+    const fired = objReqs.length - base
+
+    R.check('同一标签页把 URL 换成 ?type=class 后标题跟随（当前类型：班级）',
+      /当前类型：\s*班级/.test(sub), `导航=${navOk} / URL=${page.url()} / 副标题=${sub || '（未渲染 .page-head .sub）'}`)
+    R.check('表格数据跟随刷新（班级 4 行，不是学生 20 行）',
+      rows === 4, `行数=${rows} / 换 URL 前徽标=${beforeTotal} 后=${afterTotal}`)
+    R.check('「共 N 条」与表格行数三者一致（标题/表格/条数=4）',
+      afterTotal === 4 && afterTotal === rows, `徽标=${afterTotal} / 行数=${rows}`)
+    R.check('一次 URL 变化只补发 1 次 /objects 请求（去重生效）',
+      fired === 1, `本次 /objects 请求数=${fired} / 最近 URL=${JSON.stringify(objReqs.slice(-3))}`)
+  } finally { await page.close() }
+}
+
 const HANDLERS = {
   pages_desktop: casePagesDesktop,
   pages_mobile: casePagesMobile,
@@ -818,6 +1206,12 @@ const HANDLERS = {
   business_jump: caseBusinessJump,
   source_freshness: caseSourceFreshness,
   display_regression: caseDisplayRegression,
+  explorer_single_page_no_pager: caseExplorerSinglePageNoPager,
+  explorer_filter_alias_works: caseExplorerFilterAliasWorks,
+  explorer_filter_fields_whitelisted: caseExplorerFilterFieldsWhitelisted,
+  relations_default_picker: caseRelationsDefaultPicker,
+  relations_empty_gid_hint: caseRelationsEmptyGidHint,
+  explorer_url_change_refresh: caseExplorerUrlChangeRefresh,
 }
 
 function parseArgs() {
