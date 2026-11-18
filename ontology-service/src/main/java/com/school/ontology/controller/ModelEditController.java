@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.school.ontology.common.OntApiResponse;
 import com.school.ontology.core.model.DefinitionApplyService;
+import com.school.ontology.core.model.ObjectEditRequest;
+import com.school.ontology.core.model.ObjectTypeDefinitionEditor;
 import com.school.ontology.core.model.RelationEditRequest;
 import com.school.ontology.core.model.RelationTypeDefinitionEditor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,11 +43,22 @@ public class ModelEditController {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     private final RelationTypeDefinitionEditor editor;
+    /** C 档新增：对象类型在线编辑（六个展示层字段，其余硬拒绝）。 */
+    private final ObjectTypeDefinitionEditor objectEditor;
     private final DefinitionApplyService applyService;
 
+    /** 既有构造保留，便于只装配关系编辑的调用点零改动。 */
     public ModelEditController(RelationTypeDefinitionEditor editor,
                               DefinitionApplyService applyService) {
+        this(editor, null, applyService);
+    }
+
+    @Autowired
+    public ModelEditController(RelationTypeDefinitionEditor editor,
+                              ObjectTypeDefinitionEditor objectEditor,
+                              DefinitionApplyService applyService) {
         this.editor = editor;
+        this.objectEditor = objectEditor;
         this.applyService = applyService;
     }
 
@@ -77,6 +92,29 @@ public class ModelEditController {
         return OntApiResponse.ok(editor.reset(parse(body)));
     }
 
+    // ── 对象类型在线编辑（C 档）────────────────────────────────────────────
+
+    /** 修改既有对象类型的展示层定义；保存为草稿，需「应用到运行时」后生效。 */
+    @PutMapping("/object-types/{id}")
+    public OntApiResponse<Map<String, Object>> updateObject(
+            @PathVariable("id") String objectTypeId,
+            @RequestBody(required = false) Map<String, Object> body) {
+        return OntApiResponse.ok(objectEditor.update(objectTypeId, parseObject(body)));
+    }
+
+    /** 恢复对象类型打包基线：只删 object overlay，不改关系 overlay；需 confirm=true。 */
+    @PostMapping("/object-types/reset")
+    public OntApiResponse<Map<String, Object>> resetObject(
+            @RequestBody(required = false) Map<String, Object> body) {
+        return OntApiResponse.ok(objectEditor.reset(parseObject(body)));
+    }
+
+    /** 对象类型草稿状态：无草稿时 exists=false；objectTypes 始终给出可编辑的完整定义。 */
+    @GetMapping("/object-types/draft")
+    public OntApiResponse<Map<String, Object>> objectDraft() {
+        return OntApiResponse.ok(objectEditor.draft());
+    }
+
     /**
      * 应用到运行时：202（自重启）或 200（待手动重启 / 无改动）。
      *
@@ -92,10 +130,22 @@ public class ModelEditController {
         return ResponseEntity.status(status).body(OntApiResponse.ok(data));
     }
 
-    /** 版本与草稿状态：生效版本 / 草稿版本 / 上次回退原因 / 版本时间线。 */
+    /**
+     * 版本与草稿状态：生效版本 / 草稿版本 / 上次回退原因 / 版本时间线。
+     *
+     * <p>关系侧已有实现负责总状态，这里补上 {@code draft.objectTypes}：
+     * 对象与关系共用一条映射版本轴，但两份 overlay 各自可独立存在。</p>
+     */
     @GetMapping("/versions")
     public OntApiResponse<Map<String, Object>> versions() {
-        return OntApiResponse.ok(editor.versions());
+        Map<String, Object> data = editor.versions();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> draft = (Map<String, Object>) data.get("draft");
+        if (draft != null) {
+            draft.put("objectTypes", objectEditor == null ? List.of() : objectEditor.draftViews());
+            draft.put("objectTypesFromDraft", objectEditor != null && objectEditor.objectOverlayExists());
+        }
+        return OntApiResponse.ok(data);
     }
 
     /** 把 JSON 请求体转成强类型入参；空体返回空对象，由各闸门给出中文错误。 */
@@ -104,5 +154,13 @@ public class ModelEditController {
             return new RelationEditRequest();
         }
         return JSON.convertValue(body, RelationEditRequest.class);
+    }
+
+    /** 对象编辑请求体解析；未知字段忽略（与关系侧一致）。 */
+    private static ObjectEditRequest parseObject(Map<String, Object> body) {
+        if (body == null || body.isEmpty()) {
+            return new ObjectEditRequest();
+        }
+        return JSON.convertValue(body, ObjectEditRequest.class);
     }
 }

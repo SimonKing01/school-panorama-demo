@@ -159,7 +159,7 @@ async function reload(typeOverride?: string): Promise<void> {
     await load(typeOverride)
     error.value = ''
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '对象列表加载失败'
+    error.value = e instanceof Error ? e.message : '没能查出对象列表，请检查一下条件或稍后重试'
   }
 }
 
@@ -260,7 +260,7 @@ function hasConditions(): boolean {
 function totalHint(): string {
   const total = data.value?.total ?? 0
   const shown = data.value?.items?.length ?? 0
-  return shown < total ? `共 ${total} 条，本页显示 ${shown} 条` : `共 ${total} 条`
+  return shown < total ? `找到 ${total} 条，本页显示 ${shown} 条` : `找到 ${total} 条`
 }
 
 async function applyFilter(): Promise<void> {
@@ -271,8 +271,8 @@ async function applyFilter(): Promise<void> {
   await reload()
   if (error.value) return
   notice.value = conditional
-    ? `已按当前条件筛选，${totalHint()}`
-    : `未设置筛选条件，已显示全部 ${totalHint()}`
+    ? `已经按你填的条件查找，${totalHint()}`
+    : `你没有填条件，这里显示全部 ${totalHint()}`
 }
 
 async function clearFilters(): Promise<void> {
@@ -283,7 +283,7 @@ async function clearFilters(): Promise<void> {
   syncQuery()
   await reload()
   if (error.value) return
-  notice.value = `条件已清空，已显示全部 ${totalHint()}`
+  notice.value = `已经清除搜索条件，显示全部 ${totalHint()}`
 }
 
 function changePage(next: number): void {
@@ -302,8 +302,8 @@ function open(globalId: string): void {
   <div>
     <div class="page-head">
       <div>
-        <h2>通用对象探索器</h2>
-        <div class="sub">类型、列表列、可搜索/可筛选字段全部来自模型定义；当前类型：{{ displayName(activeType) }}</div>
+        <h2>查对象</h2>
+        <div class="sub">显示哪些列、能搜哪些字段由配置决定；当前查看：{{ displayName(activeType) }}</div>
       </div>
       <span class="demo-tag">演示数据</span>
     </div>
@@ -315,17 +315,17 @@ function open(globalId: string): void {
     <div class="card">
       <div class="toolbar">
         <label>搜索</label>
-        <input v-model="keyword" type="text" placeholder="按模型定义的可搜索字段过滤" @keyup.enter="applyFilter" />
+        <input v-model="keyword" type="text" placeholder="输入姓名、编号或名称查找" @keyup.enter="applyFilter" />
         <template v-for="key in filterFields" :key="key">
           <label>{{ filterLabel(key) }}</label>
-          <input v-model="filters[key]" type="text" :placeholder="'筛选 ' + filterLabel(key)" style="width:130px" />
+          <input v-model="filters[key]" type="text" :placeholder="'按' + filterLabel(key) + '筛选'" style="width:130px" />
         </template>
-        <button class="primary" :disabled="loading" @click="applyFilter">
-          {{ loading ? '查询中…' : '应用筛选' }}
+        <button class="primary" :disabled="loading" @click="applyFilter" title="填好上面的条件后点这里查找，会重新查出符合条件的对象">
+          {{ loading ? '查找中…' : '查找' }}
         </button>
-        <button :disabled="loading" @click="clearFilters">清空</button>
+        <button :disabled="loading" @click="clearFilters" title="点这里清除上面填的所有搜索和筛选条件，重新显示全部对象">清除搜索条件</button>
         <span class="spacer"></span>
-        <span class="badge info">共 {{ data?.total ?? 0 }} 条</span>
+        <span class="badge info">找到 {{ data?.total ?? 0 }} 条</span>
       </div>
 
       <p v-if="error" class="error-banner">{{ error }}</p>

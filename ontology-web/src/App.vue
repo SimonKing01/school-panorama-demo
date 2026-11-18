@@ -23,12 +23,12 @@ onMounted(async () => {
   try {
     await load()
   } catch (error) {
-    modelError.value = error instanceof Error ? error.message : '模型定义加载失败'
+    modelError.value = error instanceof Error ? error.message : '页面信息没能加载出来，请刷新重试'
   }
   try {
     await refreshStatus()
   } catch {
-    // 来源不可用时保留空状态，由徽章显示「来源不可用」。
+    // 来源不可用时保留空状态，由徽章显示「还没接入」。
   }
   // 顶部状态本身也是一个「已打开视角」，必须刷新成功才允许 ack 新版本号。
   unregister = registerRefresher(refreshStatus)
@@ -43,7 +43,7 @@ onUnmounted(() => {
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">
-        <h1>学校本体平台</h1>
+        <h1>学校数据全景</h1>
         <span class="demo-tag">演示数据</span>
         <span class="demo-tag">演示时间</span>
       </div>
@@ -54,20 +54,20 @@ onUnmounted(() => {
 
     <nav class="main-nav">
       <RouterLink to="/">全景总览</RouterLink>
-      <RouterLink to="/explorer">通用对象探索器</RouterLink>
-      <RouterLink to="/relations">关系探索</RouterLink>
-      <RouterLink to="/changes">变化与影响</RouterLink>
-      <RouterLink to="/admin">模型与接入管理</RouterLink>
+      <RouterLink to="/explorer">查对象</RouterLink>
+      <RouterLink to="/relations">查关系</RouterLink>
+      <RouterLink to="/changes">看变化</RouterLink>
+      <RouterLink to="/admin">配置中心</RouterLink>
     </nav>
 
     <main class="content">
-      <p v-if="modelError" class="error-banner">模型定义加载失败：{{ modelError }}</p>
+      <p v-if="modelError" class="error-banner">页面信息没能加载出来：{{ modelError }}</p>
       <RevisionBar @refresh="poll" />
       <RouterView />
     </main>
 
     <footer class="foot">
-      本体平台只读取本体数据底座的当前投影 · 业务操作请前往原业务系统（沿用原有校验） · 全部为演示数据
+      这里只查看已同步的数据，不会改业务；要改业务请到原业务系统 · 全部为演示数据
     </footer>
   </div>
 </template>

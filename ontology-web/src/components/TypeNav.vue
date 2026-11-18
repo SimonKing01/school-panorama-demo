@@ -12,7 +12,7 @@ const emit = defineEmits<{ (e: 'select', id: string): void }>()
       v-for="item in types"
       :key="item.id"
       :class="{ active: active === item.id }"
-      :title="item.description"
+      :title="'查看' + item.displayName + '列表'"
       @click="emit('select', item.id)"
     >
       {{ item.displayName }}

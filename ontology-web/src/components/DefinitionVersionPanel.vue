@@ -61,6 +61,13 @@ function statusLabel(status: string): string {
       </div>
       <div class="k">打包基线版本</div>
       <div class="v">{{ versions?.baselineMappingVersion || '—' }}</div>
+      <div class="k">对象类型草稿</div>
+      <div class="v">
+        <template v-if="versions?.draft?.objectTypesFromDraft">
+          {{ versions.draft.objectTypes?.length ?? 0 }} 类（在线改动待生效）
+        </template>
+        <span v-else class="hint">无（沿用打包基线）</span>
+      </div>
       <div class="k">草稿版本</div>
       <div class="v">
         <template v-if="versions?.draft?.exists">
@@ -85,15 +92,15 @@ function statusLabel(status: string): string {
     <p v-if="fallbackOccurred" class="error-banner" style="margin-top:10px">
       ⚠ 上次启动曾回退基线：{{ versions?.lastFallback?.reason || 'overlay 非法' }}
       （{{ versions?.lastFallback?.at || '时间未知' }}）——坏文件已隔离为
-      <code>relation-types.yaml.invalid.*</code>，请修正后重新保存。
+      <code>{{ versions?.lastFallback?.fileName || 'relation-types.yaml' }}.invalid.*</code>，请修正后重新保存。
     </p>
 
     <div class="toolbar" style="margin-top:10px">
       <button class="primary" :disabled="busy || applying || !pendingApply" @click="emit('apply')">
-        {{ applying ? '正在应用（服务重启中…）' : '应用到运行时' }}
+        {{ applying ? '正在让改动生效（服务重启中…）' : '让改动生效' }}
       </button>
       <button class="danger" :disabled="busy || applying || !versions?.draft?.exists" @click="emit('reset')">
-        恢复基线
+        撤销在线修改
       </button>
       <span v-if="applyMessage" class="hint" :class="{ 'apply-ok': applyPhase === 'success', 'apply-bad': applyPhase === 'timeout' }">
         {{ applyMessage }}

@@ -9,6 +9,8 @@ import com.school.ontology.common.Resp;
 import com.school.ontology.repository.OntologyRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -45,13 +47,26 @@ public class RelationTypeDefinitionEditor {
     private final ModelDefinitionLoader loader;
     private final RelationTypeValidator validator;
     private final DefinitionFileStore fileStore;
+    /** 对象 overlay（C 档新增）：草稿版本必须同时覆盖两份 overlay；单测构造为 null。 */
+    private final DefinitionFileStore objectStore;
     private final OntologyRepository repository;
 
+    /** 既有 4 参构造保持不变，关系类型编辑测试零改动通过。 */
     public RelationTypeDefinitionEditor(ModelDefinitionLoader loader, RelationTypeValidator validator,
                                         DefinitionFileStore fileStore, OntologyRepository repository) {
+        this(loader, validator, fileStore, null, repository);
+    }
+
+    @Autowired
+    public RelationTypeDefinitionEditor(
+            ModelDefinitionLoader loader, RelationTypeValidator validator,
+            @Qualifier("relationDefinitionFileStore") DefinitionFileStore fileStore,
+            @Qualifier("objectDefinitionFileStore") DefinitionFileStore objectStore,
+            OntologyRepository repository) {
         this.loader = loader;
         this.validator = validator;
         this.fileStore = fileStore;
+        this.objectStore = objectStore;
         this.repository = repository;
     }
 
@@ -204,6 +219,11 @@ public class RelationTypeDefinitionEditor {
                     "activatedAt", Resp.ts(OntologyRepository.dateTime(row.get("activated_at")))));
         }
         DefinitionFileStore.Fallback fallback = fileStore.lastFallback();
+        if (!fallback.occurred() && objectStore != null && objectStore.lastFallback().occurred()) {
+            fallback = objectStore.lastFallback();
+        }
+        // 任一 overlay 存在都算「有草稿」；对象类型草稿由 ModelEditController 合并进 draft.objectTypes。
+        boolean draftExists = DefinitionDraftHash.hasDraft(objectStore, fileStore);
         return Resp.map(
                 "sourceId", sourceId,
                 "activeMappingVersion", activeVersion,
@@ -216,16 +236,16 @@ public class RelationTypeDefinitionEditor {
                         DefinitionVersionAttribution.startupNote(activeSource)),
                 "baselineMappingVersion", loader.baselineMappingVersion().mappingVersion,
                 "draft", Resp.map(
-                        "exists", fileStore.overlayExists(),
+                        "exists", draftExists,
                         "draftMappingVersion", draftVersion,
-                        "draftDefinitionSource", fileStore.overlayExists() ? SOURCE_OVERLAY : null,
+                        "draftDefinitionSource", draftExists ? SOURCE_OVERLAY : null,
                         "savedAt", draftSavedAt,
                         "savedBy", draftSavedBy,
                         "savedNote", draftSavedNote,
                         "pendingApply", pendingApply,
                         "pendingTargetVersion", pendingApply ? pendingTarget : null,
                         "pendingTargetSource", pendingApply
-                                ? (fileStore.overlayExists() ? SOURCE_OVERLAY : SOURCE_BASELINE) : null,
+                                ? (draftExists ? SOURCE_OVERLAY : SOURCE_BASELINE) : null,
                         // 草稿的完整关系清单：管理页用它渲染「待生效」的列表，
                         // 也让「刚新增还没生效」的关系在同一进程里可继续编辑/删除。
                         "relations", fileStore.overlayExists()
@@ -233,6 +253,7 @@ public class RelationTypeDefinitionEditor {
                 "lastFallback", Resp.map(
                         "occurred", fallback.occurred(),
                         "reason", fallback.reason(),
+                        "fileName", fallback.fileName(),
                         "at", Resp.ts(fallback.at())),
                 "versions", versions);
     }
@@ -243,15 +264,18 @@ public class RelationTypeDefinitionEditor {
                 loader.mappingVersion().mappingVersion);
     }
 
-    /** 当前草稿版本：直接从 overlay 文本算 hash，是「重启后真正会生效」的那个版本。 */
+    /**
+     * 当前草稿版本：按「重启后真正生效的三份文本」算 hash。
+     *
+     * <p>对象 overlay 与关系 overlay 任一份存在都算草稿；两份的文本都要覆盖，
+     * 否则「只改对象类型」时版本不会变化，应用会被误判为 noChange。</p>
+     */
     public String draftVersion(String sourceId) {
-        if (!fileStore.overlayExists()) {
+        if (!DefinitionDraftHash.hasDraft(objectStore, fileStore)) {
             return null;
         }
         try {
-            String overlayText = fileStore.readOverlayText();
-            return versionOf(sourceId, Resp.sha256(loader.objectText() + "\n" + overlayText
-                    + "\n" + loader.sourceText()));
+            return DefinitionDraftHash.version(sourceId, loader, objectStore, fileStore);
         } catch (Exception e) {
             log.warn("读取在线定义以计算草稿版本失败：{}", e.getMessage());
             return null;
@@ -264,14 +288,15 @@ public class RelationTypeDefinitionEditor {
     private Map<String, Object> save(ModelDocument.RelationTypeDocument document, String sourceId,
                                      RelationEditRequest request, String note) {
         String text = serialize(document);
-        String hash = Resp.sha256(loader.objectText() + "\n" + text + "\n" + loader.sourceText());
-        String pendingVersion = versionOf(sourceId, hash);
+        String pendingVersion = DefinitionDraftHash.versionForRelationText(
+                sourceId, loader, text, objectStore);
         fileStore.writeOverlay(text);
         String operator = blankToDefault(request.operator, DEFAULT_OPERATOR);
         try {
             // 保存即登记（P6）：同一草稿重复保存覆盖这一行（同一 version 幂等），
             // 不堆一堆 PENDING；署名取本次请求的 operator/note。
-            repository.markPendingMappingVersion(sourceId, pendingVersion, "sha256:" + hash,
+            repository.markPendingMappingVersion(sourceId, pendingVersion,
+                    DefinitionDraftHash.definitionHashForRelationText(loader, text, objectStore),
                     operator, note, SOURCE_OVERLAY);
             repository.supersedeOtherPending(sourceId, pendingVersion);
         } catch (Exception e) {

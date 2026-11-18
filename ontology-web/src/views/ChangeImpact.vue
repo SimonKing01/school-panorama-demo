@@ -81,26 +81,26 @@ onUnmounted(() => {
   <div>
     <div class="page-head">
       <div>
-        <h2>变化与影响</h2>
-        <div class="sub">属性前后差异 / 关系增减 / 来源事件 / 两类时间分开显示；旧老师与新老师两侧均可查同一次变化</div>
+        <h2>看变化</h2>
+        <div class="sub">看哪里改了、新增或结束了哪些关联；输入旧老师或新老师都能查到同一次调课</div>
       </div>
       <span class="demo-tag">演示数据 / 演示时间</span>
     </div>
 
     <div class="card">
       <div class="toolbar">
-        <label>对象 globalId</label>
-        <input v-model="globalId" type="text" style="min-width:280px; max-width:100%" placeholder="留空查看全部变化" />
+        <label>对象编号</label>
+        <input v-model="globalId" type="text" style="min-width:280px; max-width:100%" placeholder="可填对象编号或姓名，留空看全部" />
         <button class="primary" @click="apply">查询</button>
         <span class="spacer"></span>
-        <label>影响角色</label>
+        <label>看哪类变化</label>
         <button :class="{ active: role === '' }" @click="setRole('')">全部</button>
-        <button :class="{ active: role === 'SELF_CHANGED' }" @click="setRole('SELF_CHANGED')">本身变化</button>
-        <button :class="{ active: role === 'DERIVED_RELATED' }" @click="setRole('DERIVED_RELATED')">计算出的相关对象</button>
+        <button :class="{ active: role === 'SELF_CHANGED' }" @click="setRole('SELF_CHANGED')">直接改动的对象</button>
+        <button :class="{ active: role === 'DERIVED_RELATED' }" @click="setRole('DERIVED_RELATED')">因关联受影响的对象</button>
       </div>
       <div class="hint">
-        提示：一次老师替换会同时写入旧教师与新教师作为关系端点，分别传入两者 globalId 都能查到同一个 changeId。
-        对账/重建修复的历史 operator 与 businessTime 为空，不伪造操作人与发生时间。
+        提示：一次调课会同时记在旧老师和新老师名下，输入任意一位都能查到同一条变化。
+        系统自动修复的记录没有操作人和发生时间，这是正常的。
       </div>
       <p v-if="error" class="error-banner">{{ error }}</p>
     </div>
@@ -108,7 +108,7 @@ onUnmounted(() => {
     <div v-if="(data?.items ?? []).length">
       <ChangeItemCard v-for="item in data?.items ?? []" :key="item.changeId" :item="item" />
     </div>
-    <div v-else class="card empty">暂无变化记录</div>
+    <div v-else class="card empty">最近还没有变化。可到原业务系统改一次课程安排，这里会自动更新</div>
 
     <div class="card">
       <Pagination :page="page" :size="size" :total="data?.total ?? 0" @change="changePage" />

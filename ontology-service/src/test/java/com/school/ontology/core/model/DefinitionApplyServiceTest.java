@@ -158,6 +158,32 @@ class DefinitionApplyServiceTest {
     }
 
     @Test
+    void 目标版本覆盖对象overlay即使关系overlay不存在() throws Exception {
+        // C 档：只改对象类型时也必须产生新目标版本，否则「应用到运行时」会被误判成 noChange。
+        DefinitionFileStore objectStore = new DefinitionFileStore(
+                directory, DefinitionFileStore.OBJECT_OVERLAY_FILE);
+        ModelDefinitionLoader freshLoader = new ModelDefinitionLoader(store, objectStore);
+        String editedObject = freshLoader.objectText()
+                .replace("    displayName: 学生\n", "    displayName: 学生（测试）\n");
+        assertNotEquals(freshLoader.objectText(), editedObject, "测试前提：对象文本可被替换");
+        objectStore.writeOverlay(editedObject);
+        // 进程仍加载基线（草稿未生效），DB 的 ACTIVE 也是基线。
+        CountDownLatch exited = new CountDownLatch(1);
+        DefinitionApplyService service = new DefinitionApplyService(
+                freshLoader, store, objectStore, repository, true, exited::countDown);
+        String expectedHash = com.school.ontology.common.Resp.sha256(
+                editedObject + "\n" + freshLoader.baselineRelationText() + "\n" + freshLoader.sourceText());
+        String expectedVersion = "school-panorama:" + expectedHash.substring(0, 12);
+
+        Map<String, Object> result = service.apply(request());
+
+        assertEquals(Boolean.TRUE, result.get("applying"));
+        assertEquals(expectedVersion, result.get("targetMappingVersion"),
+                "目标版本必须是对象 overlay 生效后的版本，而不是关系 overlay 的版本");
+        assertNotEquals(baseVersion, result.get("targetMappingVersion"));
+    }
+
+    @Test
     void 过期baseMappingVersion返回409() {
         store.writeOverlay(editedRelationText());
         DefinitionApplyService service = service(true, () -> {

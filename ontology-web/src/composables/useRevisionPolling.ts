@@ -28,7 +28,7 @@ export function useRevisionPolling(intervalMs = 1000) {
       store.acknowledged = srv.revision
       store.lastError = ''
     } catch (error) {
-      store.lastError = error instanceof Error ? error.message : '刷新失败，下轮自动重试'
+      store.lastError = error instanceof Error ? error.message : '更新页面数据失败，会自动重试'
       // ★ acknowledged 保持不变，下一轮 srv.revision > acknowledged 会再次触发刷新。
     } finally {
       store.refreshing = false

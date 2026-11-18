@@ -171,7 +171,7 @@ function syncQuery(): void {
  */
 async function apply(): Promise<void> {
   if (!globalId.value) {
-    error.value = '请先输入 globalId，或从下方对象列表中选择一个对象'
+    error.value = '请先从下面选一个对象，或在上面填写对象编号'
     globalIdField.value?.focus()
     // 空态卡片里必须始终有可点入口：首次进入时 loadStarter 可能因模型未就绪而没铺上列表，
     // 这里补一次，避免「提示有了、下面还是空的」。
@@ -252,31 +252,31 @@ onUnmounted(() => {
   <div>
     <div class="page-head">
       <div>
-        <h2>关系探索</h2>
-        <div class="sub">列表 + 关系图，1/2 层展开、节点上限与分页；点关系可看成因、来源记录与映射依据</div>
+        <h2>查关系</h2>
+        <div class="sub">先看列表或关系图，选看几层；点一条连线能看到为什么有关系、数据从哪来</div>
       </div>
       <span class="demo-tag">演示数据</span>
     </div>
 
     <div class="card">
       <div class="toolbar">
-        <label>中心对象 globalId</label>
-        <span class="hint">未填写时点「展开关系」不会发起查询</span>
+        <label>从哪个对象开始</label>
+        <span class="hint">没填的话，请先从下面选一个对象</span>
         <input
           ref="globalIdField"
           v-model="globalIdInput"
           type="text"
           style="min-width:280px; max-width:100%"
-          placeholder="例如：gid:school-panorama:student:1（可粘贴，也可从下方选择对象）"
+          placeholder="输入姓名或编号，也可直接点下面的对象"
         />
-        <button class="primary" @click="apply">展开关系</button>
+        <button class="primary" @click="apply">查看关系</button>
         <span class="spacer"></span>
-        <label>展开层数</label>
+        <label>看几层关系</label>
         <button :class="{ active: depth === 1 }" @click="setDepth(1)">1 层</button>
         <button :class="{ active: depth === 2 }" @click="setDepth(2)">2 层</button>
-        <label>节点上限</label>
+        <label>最多显示多少个对象</label>
         <input v-model.number="limit" type="number" min="1" max="200" style="width:90px" />
-        <button @click="apply">应用上限</button>
+        <button @click="apply">按这个数量重新画</button>
       </div>
       <p v-if="error" class="error-banner">{{ error }}</p>
       <div v-if="list" class="hint">关系总数 {{ list.total }} · 当前第 {{ page }} 页</div>
@@ -284,12 +284,12 @@ onUnmounted(() => {
 
     <!-- 未选中心对象：引导 + 对象选择器（缺陷 B 修复：不再渲染空表格骨架） -->
     <div v-if="!globalId" class="card">
-      <h3>请先选择中心对象</h3>
-      <div class="hint">可在此搜索对象，或从「通用对象探索器」点选后进入本页。</div>
+      <h3>请先选一个起点对象</h3>
+      <div class="hint">可以在这里搜，也可以从「查对象」点进来。</div>
       <div class="toolbar" style="margin-top:8px">
-        <label>对象类型</label>
+        <label>对象类别</label>
         <select v-model="pickerType">
-          <option value="">全部类型</option>
+          <option value="">全部类别</option>
           <option v-for="t in types" :key="t.id" :value="t.id">{{ t.displayName }}</option>
         </select>
         <label>关键字</label>
@@ -301,7 +301,7 @@ onUnmounted(() => {
       <div v-if="pickerResults">
         <h3 style="margin-top:12px">{{ pickerTitle }}</h3>
         <div class="hint">
-          当前范围：{{ pickerScope }} · 共 {{ pickerResults.total }} 条（点击任意一行，即以该对象为中心展开关系）
+          当前显示：{{ pickerScope }}，共 {{ pickerResults.total }} 个；点一个就开始查它的关系
         </div>
         <div v-if="!pickerResults.items.length" class="empty">没有匹配的对象</div>
         <ul class="list-plain">
@@ -319,7 +319,7 @@ onUnmounted(() => {
     </div>
 
     <div v-if="graph" class="card">
-      <h3>关系图（纯 SVG，无外部图库）</h3>
+      <h3>关系图</h3>
       <RelationGraph :graph="graph" :relations="list?.items ?? []" />
     </div>
 
@@ -328,13 +328,13 @@ onUnmounted(() => {
       <table class="desktop-only">
         <thead>
           <tr>
-            <th>关系 / 展示名</th><th>起点对象</th><th>终点对象</th><th>存在原因</th>
-            <th>来源表 / 主键</th><th>映射版本</th><th>业务有效起</th><th>业务有效止</th><th>状态</th>
+            <th>关系</th><th>起点对象</th><th>终点对象</th><th>为什么有这条关系</th>
+            <th>数据来自哪里</th><th>数据批次</th><th>开始日期</th><th>结束日期</th><th>状态</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="rel in list?.items ?? []" :key="rel.relationId">
-            <td><b>{{ rel.displayName }}</b><div class="hint">{{ rel.relationType }}</div></td>
+            <td><b>{{ rel.displayName }}</b><div class="hint" :title="rel.relationType">{{ rel.displayName || rel.relationType }}</div></td>
             <td><a href="#" @click.prevent="openObject(rel.from.globalId)">{{ rel.from.title }}</a></td>
             <td><a href="#" @click.prevent="openObject(rel.to.globalId)">{{ rel.to.title }}</a></td>
             <td class="hint">{{ rel.reason }}</td>
@@ -342,7 +342,7 @@ onUnmounted(() => {
             <td class="hint">{{ rel.mappingVersion || '—' }}</td>
             <td class="hint">{{ rel.validFrom || '长期' }}</td>
             <td class="hint">{{ rel.validTo || '—' }}</td>
-            <td><span :class="'badge ' + (rel.active ? 'ok' : 'muted')">{{ rel.active ? '有效（新建立）' : '已结束（旧关系）' }}</span></td>
+            <td><span :class="'badge ' + (rel.active ? 'ok' : 'muted')">{{ rel.active ? '目前有效' : '已经结束' }}</span></td>
           </tr>
         </tbody>
       </table>
@@ -350,12 +350,12 @@ onUnmounted(() => {
       <div class="mobile-only">
         <div v-for="rel in list?.items ?? []" :key="rel.relationId" class="card" style="margin-bottom:8px">
           <b>{{ rel.displayName }}</b>
-          <span :class="'badge ' + (rel.active ? 'ok' : 'muted')" style="margin-left:6px">{{ rel.active ? '有效' : '已结束' }}</span>
+          <span :class="'badge ' + (rel.active ? 'ok' : 'muted')" style="margin-left:6px">{{ rel.active ? '目前有效' : '已经结束' }}</span>
           <div class="kv" style="margin-top:8px">
             <div class="k">两端对象</div><div class="v">{{ rel.from.title }} → {{ rel.to.title }}</div>
             <div class="k">存在原因</div><div class="v">{{ rel.reason }}</div>
-            <div class="k">来源表 / 主键</div><div class="v">{{ rel.source?.sourceTable || '—' }} / {{ rel.source?.sourcePk || '—' }}</div>
-            <div class="k">映射版本</div><div class="v">{{ rel.mappingVersion || '—' }}</div>
+            <div class="k">数据来自哪里</div><div class="v">{{ rel.source?.sourceTable || '—' }} / {{ rel.source?.sourcePk || '—' }}</div>
+            <div class="k">数据批次</div><div class="v">{{ rel.mappingVersion || '—' }}</div>
             <div class="k">有效起 / 止</div><div class="v">{{ rel.validFrom || '长期' }} / {{ rel.validTo || '—' }}</div>
           </div>
         </div>
@@ -363,7 +363,7 @@ onUnmounted(() => {
 
       <div v-if="!list" class="empty">正在加载关系数据…</div>
       <div v-else-if="!(list.items ?? []).length" class="empty">
-        该对象在 {{ depth }} 层展开下暂无关系{{ depth === 1 ? '（可尝试切到 2 层）' : '' }}
+        这个对象在 {{ depth }} 层内没有关联{{ depth === 1 ? '，试试看 2 层' : '' }}
       </div>
       <Pagination v-if="list" :page="page" :size="20" :total="list.total" @change="changePage" />
     </div>

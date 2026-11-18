@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { fmt, type FieldDef, type ObjectRow } from '../types'
+import { useModel } from '../composables/useModel'
 
 /**
  * 通用对象列表：列由模型定义的 listFields 用 v-for 生成，
@@ -10,6 +11,7 @@ import { fmt, type FieldDef, type ObjectRow } from '../types'
  */
 defineProps<{ fields: FieldDef[]; rows: ObjectRow[]; loading?: boolean }>()
 const emit = defineEmits<{ (e: 'open', globalId: string): void }>()
+const { displayName } = useModel()
 
 function value(row: ObjectRow, name: string): string {
   return fmt(row.attributes?.[name])
@@ -24,19 +26,19 @@ function value(row: ObjectRow, name: string): string {
         <tr>
           <th>对象</th>
           <th v-for="field in fields" :key="field.name">{{ field.displayName }}</th>
-          <th>来源</th>
+          <th>数据来自哪张表</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in rows" :key="row.globalId" @click="emit('open', row.globalId)">
+        <tr v-for="row in rows" :key="row.globalId" @click="emit('open', row.globalId)" title="点这一行看这个对象的详细信息">
           <td>
             <b>{{ row.title }}</b>
-            <div class="hint">{{ row.type }}</div>
+            <div class="hint">{{ displayName(row.type) }} <small class="mono">（{{ row.type }}）</small></div>
           </td>
           <td v-for="field in fields" :key="field.name">
             <span class="cell-text">{{ value(row, field.name) }}</span>
           </td>
-          <td class="hint">{{ row.sourceSummary?.sourceTable || '—' }} / {{ row.sourceSummary?.sourcePk || '—' }}</td>
+          <td class="hint" :title="`来源：${row.sourceSummary?.sourceTable || '—'} / ${row.sourceSummary?.sourcePk || '—'}`">来自业务表（编号见悬停）</td>
         </tr>
       </tbody>
     </table>
@@ -50,19 +52,19 @@ function value(row: ObjectRow, name: string): string {
         style="margin-bottom:8px; cursor:pointer"
         @click="emit('open', row.globalId)"
       >
-        <b>{{ row.title }}</b> <span class="badge info">{{ row.type }}</span>
+        <b>{{ row.title }}</b> <span class="badge info">{{ displayName(row.type) }}</span>
         <div class="kv" style="margin-top:8px">
           <template v-for="field in fields" :key="field.name">
             <div class="k">{{ field.displayName }}</div>
             <div class="v">{{ value(row, field.name) }}</div>
           </template>
-          <div class="k">来源</div>
+          <div class="k">数据来自哪张表</div>
           <div class="v">{{ row.sourceSummary?.sourceTable || '—' }} / {{ row.sourceSummary?.sourcePk || '—' }}</div>
         </div>
       </div>
     </div>
 
     <!-- 加载中不显示空态文案，否则会先闪一行「没有对象数据」再出数据 -->
-    <div v-if="rows.length === 0 && !loading" class="empty">没有对象数据</div>
+    <div v-if="rows.length === 0 && !loading" class="empty">没有找到对象，换个关键词或清除条件再试</div>
   </div>
 </template>

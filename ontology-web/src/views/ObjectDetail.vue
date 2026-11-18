@@ -34,7 +34,7 @@ async function reload(): Promise<void> {
     await load()
     error.value = ''
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '对象详情加载失败'
+    error.value = e instanceof Error ? e.message : '没能读出这个对象的信息，请稍后重试'
   }
 }
 
@@ -98,30 +98,30 @@ function goChanges(): void {
   <div>
     <div class="page-head">
       <div>
-        <h2>通用对象详情</h2>
-        <div class="sub">同一套视图渲染任一类型；详情字段随 /model/types 定义变化</div>
+        <h2>对象详情</h2>
+        <div class="sub">这里显示这个对象的信息；显示哪些内容由配置决定</div>
       </div>
       <span class="demo-tag">演示数据 / 演示时间</span>
     </div>
 
     <div class="card">
       <div class="toolbar">
-        <label>演示时间（queryTime，格式 yyyy-MM-dd'T'HH:mm:ss）</label>
-        <input v-model="queryTime" type="text" placeholder="不传则取底座 demoTime 实时计算" style="min-width:230px" />
-        <button @click="applyTime">应用</button>
-        <button @click="resetTime">恢复实时演示时间</button>
+        <label>按哪个时间点查看 <small class="mono">（格式：年-月-日 时:分:秒，如 2026-11-14T10:15:00）</small></label>
+        <input v-model="queryTime" type="text" placeholder="不填就按当前演示时间显示" style="min-width:230px" />
+        <button @click="applyTime" title="填好时间后点这里，看看那个时间点这个对象是什么情况">按这个时间查看</button>
+        <button @click="resetTime" title="点这里回到当前的演示时间">用当前演示时间</button>
         <span class="spacer"></span>
-        <span class="hint">时间边界快捷构造：</span>
-        <button @click="setPreset('07:30')">07:30</button>
-        <button @click="setPreset('10:15')">10:15</button>
-        <button @click="setPreset('10:45')">10:45</button>
-        <button @click="setPreset('17:00')">17:00</button>
+        <span class="hint">快速试试这些时间点：</span>
+        <button @click="setPreset('07:30')" title="看早上 7:30 的情况">07:30</button>
+        <button @click="setPreset('10:15')" title="看上午 10:15 的情况">10:15</button>
+        <button @click="setPreset('10:45')" title="看上午 10:45 的情况">10:45</button>
+        <button @click="setPreset('17:00')" title="看下午 5:00 的情况">17:00</button>
       </div>
-      <div class="hint">这些按钮只改变查询时间，不写任何数据；当前课程 / 下一节课 / 状态会随之变化。</div>
+      <div class="hint">这些按钮只是换个时间点查看，不会改动任何数据；当前课程、下一节课、状态会跟着变。</div>
     </div>
 
     <p v-if="error" class="error-banner">{{ error }}</p>
-    <div v-if="!globalId" class="empty">请先在总览或对象探索器中选择一个对象</div>
+    <div v-if="!globalId" class="empty">请先到总览或「查对象」里选一个对象</div>
     <ObjectDetailPanel
       v-else-if="detail"
       :detail="detail"
@@ -130,6 +130,6 @@ function goChanges(): void {
       @relations="goRelations"
       @changes="goChanges"
     />
-    <div v-else class="loading">对象详情读取中…</div>
+    <div v-else class="loading">正在读取这个对象的信息…</div>
   </div>
 </template>

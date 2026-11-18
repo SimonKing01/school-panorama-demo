@@ -39,10 +39,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       },
     })
   } catch {
-    throw new Error('本体服务不可达，请稍后重试（已同步数据仍保留）')
+    throw new Error('后台暂时连不上，请稍后再试；已经看到的数据仍能查看')
   }
   if (!response.ok) {
-    let message = `请求失败（HTTP ${response.status}）`
+    let message = `操作没成功（系统错误 ${response.status}），请稍后重试`
     let code = `HTTP_${response.status}`
     let data: unknown = null
     try {
@@ -59,10 +59,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     body = (await response.json()) as ApiEnvelope<T>
   } catch {
-    throw new Error('本体服务返回的内容无法解析')
+    throw new Error('后台返回的内容看不懂，请刷新页面再试')
   }
   if (body.code !== 'OK') {
-    throw new ApiError(response.status, body.code, body.message || `本体服务返回错误码：${body.code}`,
+    throw new ApiError(response.status, body.code, body.message || '后台返回了未能识别的错误，请刷新重试',
       body.data ?? null)
   }
   return body.data

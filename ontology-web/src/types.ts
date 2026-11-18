@@ -319,6 +319,61 @@ export interface ModelRelationsData {
   relations: RelationTypeEditDef[]
 }
 
+/** 对象类型在线编辑：属性 / 派生属性只读带出，随提交体回传供后端比对不可变字段。 */
+export interface ObjectAttributeEditDef {
+  name: string
+  displayName: string
+  type: string
+  required?: boolean
+  unique?: boolean
+  validate?: string | null
+  from?: string | null
+}
+
+export interface DerivedPropertyEditDef {
+  name: string
+  displayName: string
+  type: string
+  provider?: string | null
+  resolver?: string | null
+}
+
+/** 对象类型定义（在线编辑提交体，六个展示层字段可改；其余字段只读回传）。 */
+export interface ObjectTypeEditDef {
+  id: string
+  displayName: string
+  description: string
+  titleTemplate: string
+  listFields: string[]
+  searchableFields: string[]
+  filterableFields: string[]
+  identity: { sourceId: string; sourceTable: string; sourcePk: string; globalIdRule: string }
+  attributes: ObjectAttributeEditDef[]
+  derivedProperties: DerivedPropertyEditDef[]
+  dynamicResolvers: string[]
+  sourceMappingRef: string
+}
+
+/** 保存对象草稿时随响应返回的影响评估。 */
+export interface ObjectTypeImpact {
+  restartRequired: boolean
+  fullRebuildRequired: boolean
+  objectCount: number
+  scope: string
+  hint: string
+}
+
+export interface SaveObjectResult {
+  saved?: boolean
+  reset?: boolean
+  applied: boolean
+  noChange?: boolean
+  pendingMappingVersion?: string | null
+  definitionSource?: string
+  impact?: ObjectTypeImpact
+  message: string
+}
+
 /** 保存 / 删除 / 恢复基线的返回体。 */
 export interface SaveRelationResult {
   saved?: boolean
@@ -343,7 +398,8 @@ export interface ApplyResult {
 
 /** 校验失败时 data 的形状（逐条中文错误）。 */
 export interface ValidationErrorData {
-  relationId: string
+  relationId?: string
+  objectTypeId?: string
   errors: string[]
 }
 
@@ -380,6 +436,10 @@ export interface DefinitionDraft {
   /** OVERLAY=在线草稿；BASELINE=恢复基线待生效。 */
   pendingTargetSource?: string | null
   relations?: RelationTypeEditDef[]
+  /** 对象类型的完整可编辑定义（有对象草稿时来自 overlay，否则是当前生效定义）。 */
+  objectTypes?: ObjectTypeEditDef[]
+  /** true 表示 objectTypes 来自尚未生效的对象 overlay。 */
+  objectTypesFromDraft?: boolean
 }
 
 export interface ModelVersionsData {
@@ -392,7 +452,7 @@ export interface ModelVersionsData {
   activeNote?: string | null
   baselineMappingVersion?: string
   draft: DefinitionDraft
-  lastFallback: { occurred: boolean; reason?: string | null; at?: string | null }
+  lastFallback: { occurred: boolean; reason?: string | null; at?: string | null; fileName?: string | null }
   versions: DefinitionVersionRow[]
 }
 

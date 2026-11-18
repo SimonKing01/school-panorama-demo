@@ -36,7 +36,7 @@ export function useDefinitionApply(onSettled?: () => Promise<void> | void) {
         activeVersion.value = data.activeMappingVersion
         if (targetVersion.value && data.activeMappingVersion === targetVersion.value) {
           phase.value = 'success'
-          message.value = `已生效：${data.activeMappingVersion}`
+          message.value = `改动已生效，当前数据批次：${data.activeMappingVersion}`
           if (onSettled) await onSettled()
           return
         }
@@ -46,7 +46,7 @@ export function useDefinitionApply(onSettled?: () => Promise<void> | void) {
     }
     if (stopped) return
     phase.value = 'timeout'
-    message.value = '应用超时：请检查容器日志或手动重启本体服务（草稿仍为待生效，可重试）'
+    message.value = '让改动生效花了太长时间，暂时没成功。你的暂存修改还在，请稍后再点一次「让改动生效」；如果一直不行，请找管理员帮忙。'
   }
 
   async function apply(baseMappingVersion: string, operator = '演示管理员'): Promise<ApplyResult | null> {
@@ -57,17 +57,17 @@ export function useDefinitionApply(onSettled?: () => Promise<void> | void) {
       targetVersion.value = result.targetMappingVersion ?? null
       if (result.noChange) {
         phase.value = 'idle'
-        message.value = result.message || '草稿与当前生效版本一致，无需应用'
+        message.value = result.message || '暂存的修改和当前生效的设置一样，不用让改动生效'
         return result
       }
       if (result.pendingRestart) {
         phase.value = 'pending-restart'
-        message.value = result.message || '未启用自动重启，请手动重启本体服务以生效'
+        message.value = result.message || '改动已保存，但还没生效，请找管理员完成后面的操作'
         return result
       }
       if (result.applying) {
         phase.value = 'applying'
-        message.value = result.message || '正在应用，服务重启中…'
+        message.value = result.message || '正在让改动生效，系统正在重新加载，请稍候…'
         void waitForRestart()
       }
       return result

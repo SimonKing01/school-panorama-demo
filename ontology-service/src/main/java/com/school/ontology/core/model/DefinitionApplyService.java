@@ -7,6 +7,7 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -39,6 +40,8 @@ public class DefinitionApplyService {
 
     private final ModelDefinitionLoader loader;
     private final DefinitionFileStore fileStore;
+    /** 对象 overlay（C 档新增）：目标版本必须同时覆盖对象与关系两份 overlay。 */
+    private final DefinitionFileStore objectStore;
     private final OntologyRepository repository;
     private final boolean selfRestartEnabled;
     private final AtomicBoolean applying = new AtomicBoolean(false);
@@ -51,19 +54,30 @@ public class DefinitionApplyService {
     private volatile Runnable restartAction = () -> System.exit(0);
 
     @Autowired
-    public DefinitionApplyService(ModelDefinitionLoader loader, DefinitionFileStore fileStore,
-                                  OntologyRepository repository,
-                                  @Value("${ontology.self-restart-enabled:false}")
-                                  boolean selfRestartEnabled) {
-        this(loader, fileStore, repository, selfRestartEnabled, () -> System.exit(0));
+    public DefinitionApplyService(
+            ModelDefinitionLoader loader,
+            @Qualifier("relationDefinitionFileStore") DefinitionFileStore fileStore,
+            @Qualifier("objectDefinitionFileStore") DefinitionFileStore objectStore,
+            OntologyRepository repository,
+            @Value("${ontology.self-restart-enabled:false}")
+            boolean selfRestartEnabled) {
+        this(loader, fileStore, objectStore, repository, selfRestartEnabled, () -> System.exit(0));
     }
 
-    /** 测试用构造：注入可控的退出动作。 */
+    /** 既有测试构造（只有关系 overlay）保持不变，零改动通过。 */
     DefinitionApplyService(ModelDefinitionLoader loader, DefinitionFileStore fileStore,
                            OntologyRepository repository, boolean selfRestartEnabled,
                            Runnable restartAction) {
+        this(loader, fileStore, null, repository, selfRestartEnabled, restartAction);
+    }
+
+    /** 测试用完整构造：注入可控的退出动作与对象 overlay。 */
+    DefinitionApplyService(ModelDefinitionLoader loader, DefinitionFileStore fileStore,
+                           DefinitionFileStore objectStore, OntologyRepository repository,
+                           boolean selfRestartEnabled, Runnable restartAction) {
         this.loader = loader;
         this.fileStore = fileStore;
+        this.objectStore = objectStore;
         this.repository = repository;
         this.selfRestartEnabled = selfRestartEnabled;
         this.restartAction = restartAction == null ? () -> System.exit(0) : restartAction;
@@ -100,7 +114,7 @@ public class DefinitionApplyService {
             String target = targetVersion(sourceId);
             if (target == null) {
                 throw new ApiException(400, "NO_DRAFT",
-                        "当前没有待应用的草稿：请先保存对关系类型的修改");
+                        "当前没有待应用的草稿：请先保存对对象类型或关系类型的修改");
             }
             // ── 幂等①（P7-3）：目标 == 本进程已加载的定义 → 重启不可能改变任何东西 ──
             // 必须排在「与 DB 里的 ACTIVE 比对」之前。重启后存在约 100ms 的窗口：Tomcat 已就绪，
@@ -177,15 +191,14 @@ public class DefinitionApplyService {
      * </ul>
      */
     private String targetVersion(String sourceId) {
-        if (!fileStore.overlayExists()) {
+        if (!DefinitionDraftHash.hasDraft(objectStore, fileStore)) {
             String baseline = loader.baselineMappingVersion().mappingVersion;
             return baseline == null || baseline.isBlank() ? null : baseline;
         }
         try {
-            String overlayText = fileStore.readOverlayText();
-            String hash = Resp.sha256(loader.objectText() + "\n" + overlayText
-                    + "\n" + loader.sourceText());
-            return sourceId + ":" + hash.substring(0, 12);
+            // 目标版本 = 重启后实际生效的三份文本的 hash：
+            // 对象 / 关系各自 overlay 优先，缺失的一方用打包基线原文。
+            return DefinitionDraftHash.version(sourceId, loader, objectStore, fileStore);
         } catch (Exception e) {
             log.warn("读取在线定义以计算草稿版本失败：{}", e.getMessage());
             return null;

@@ -111,6 +111,81 @@ async function ontoPost(p, body = {}) {
   } catch { return { status: 0, data: null } }
 }
 
+/**
+ * 等待本体服务「重启后恢复」：每轮都先确认 /overview 返回 200，
+ * 再确认目标 mappingVersion 已成为 ACTIVE；最多等 120 秒（自重启 + 投影重建）。
+ */
+async function waitOntologyReady(expectedVersion, timeout = 120000) {
+  const deadline = Date.now() + timeout
+  let last = { status: 0, version: null }
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(ONTO_API + '/api/ontology/overview')
+      last.status = response.status
+      if (response.status === 200) {
+        const versions = await ontoGet('/model/versions')
+        last.version = versions?.activeMappingVersion || null
+        if (versions && (!expectedVersion || versions.activeMappingVersion === expectedVersion)) {
+          return { ok: true, ...last }
+        }
+      }
+    } catch {
+      // 服务正在重启：连接失败是预期现象，继续等下一轮。
+      last.status = 0
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  }
+  return { ok: false, ...last }
+}
+
+/** 等投影重建完成：定义变更后 ActivateRunner 会异步重建，期间 objects 可能短暂为 0。 */
+async function waitObjectCount(expected, timeout = 120000) {
+  const deadline = Date.now() + timeout
+  let count = -1
+  while (Date.now() < deadline) {
+    const overview = await ontoGet('/overview')
+    count = overview?.counts?.objects ?? -1
+    if (count === expected) return { ok: true, count }
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  }
+  return { ok: false, count }
+}
+
+/** 读取当前学生类型的定义（草稿优先），用于前后对照显示名。 */
+async function currentStudentDefinition() {
+  const draft = await ontoGet('/model/object-types/draft')
+  const rows = draft?.objectTypes ?? []
+  return rows.find(row => row.id === 'student') ?? null
+}
+
+/** 通过 API 恢复对象基线并应用：浏览器用例的兜底清理，绝不把「学生（测试）」留在演示环境。 */
+async function restoreObjectBaseline() {
+  const versions = await ontoGet('/model/versions')
+  const draft = await currentStudentDefinition()
+  if (!versions || !draft || (draft.displayName === '学生' && !versions.draft?.objectTypesFromDraft)) return { skipped: true }
+  const base = versions.activeMappingVersion
+  const reset = await ontoPost('/model/object-types/reset', {
+    baseMappingVersion: base, confirm: true, operator: '浏览器验收',
+  })
+  if (reset.status !== 200 || !reset.data?.pendingMappingVersion) return { ok: false, reset: reset.status }
+  const target = reset.data.pendingMappingVersion || versions.baselineMappingVersion
+  let applied = await ontoPost('/model/relations/apply', {
+    baseMappingVersion: base, operator: '浏览器验收',
+  })
+  // 刚应用过一次时重建任务可能仍在跑：等 3 秒后用最新 ACTIVE 版本重试一次。
+  if (applied.status === 409) {
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    const fresh = await ontoGet('/model/versions')
+    applied = await ontoPost('/model/relations/apply', {
+      baseMappingVersion: fresh?.activeMappingVersion || base, operator: '浏览器验收',
+    })
+  }
+  if (applied.status !== 200 && applied.status !== 202) return { ok: false, apply: applied.status }
+  const restored = await waitOntologyReady(target)
+  const objects = await waitObjectCount(95)
+  return { ok: restored.ok && objects.ok, restored: restored.ok, objects: objects.count }
+}
+
 async function goto(page, route, shotName) {
   // ontology-web 用 createWebHashHistory（src/router.ts），真实地址是 /#/xxx。
   // 旧写法直接拼 /xxx 会落到 hash='' → 重定向到总览，后续断言读到的是错误的页面（
@@ -188,12 +263,12 @@ async function clickFirstResult(page, text) {
 /**
  * 读对象探索器工具栏右上角「共 N 条」徽标。
  * 取不到返回 -1：断言里直接得到 -1 就能看出「徽标根本没了」，而不是被 0 悄悄带过。
- * 只认纯「共 N 条」的徽标，避免误取手机卡片里的类型徽标。
+ * 只认纯「找到 N 条」的徽标，避免误取手机卡片里的类型徽标。
  */
 async function explorerTotal(page) {
   const texts = await page.locator('.badge.info').allInnerTexts().catch(() => [])
   for (const t of texts) {
-    const m = String(t).trim().match(/^共\s*(\d+)\s*条$/)
+    const m = String(t).trim().match(/^(?:共|找到)\s*(\d+)\s*条$/)
     if (m) return Number(m[1])
   }
   return -1
@@ -221,8 +296,8 @@ async function waitExplorerTotal(page, expected, timeout = 8000) {
  */
 async function filterLabels(page) {
   return await page.evaluate(() => Array.from(
-    document.querySelectorAll('.toolbar input[placeholder^="筛选 "]'),
-  ).map(i => String(i.getAttribute('placeholder') || '').replace(/^筛选\s*/, '').trim())).catch(() => [])
+    document.querySelectorAll('.toolbar input[placeholder^="按"][placeholder$="筛选"]'),
+  ).map(i => String(i.getAttribute('placeholder') || '').replace(/^按/, '').replace(/筛选$/, '').trim())).catch(() => [])
 }
 
 /** 采集页面发出的请求 URL（返回的数组是活的，断言时取长度差即可）。 */
@@ -326,14 +401,16 @@ const CASES = [
   { name: 'relations_default_picker', title: '缺陷 3：直接打开关系页即有可点对象列表并展开列表+图', group: '缺陷修复' },
   { name: 'relations_empty_gid_hint', title: '缺陷 3：globalId 为空时给提示且不发 /relations 请求', group: '缺陷修复' },
   { name: 'explorer_url_change_refresh', title: '缺陷 2：同标签页换 URL 后标题/表格/条数一起刷新且只发 1 次请求', group: '缺陷修复' },
+  // 对象类型在线编辑（C 档）：编号顺延 26，走完草稿→应用→新名可见→恢复基线闭环
+  { name: 'object_type_online_edit', title: '26-对象类型在线编辑：草稿→应用→探索器新名→恢复基线', group: '在线编辑' },
 ]
 
 const PAGES = [
   { route: '/', title: '全景总览', shot: '总览', keywords: ['总览', '对象', '关系', '同步', '搜索'], nav: '全景总览' },
-  { route: '/explorer', title: '通用对象探索器', shot: '对象探索器', keywords: ['对象', '类型', '列表', '学生', '教师'], nav: '对象探索器' },
-  { route: '/relations', title: '关系探索（列表 + 图）', shot: '关系探索', keywords: ['关系', '图', '展开'], nav: '关系探索' },
-  { route: '/changes', title: '变化与影响', shot: '变化与影响', keywords: ['变化', '影响', '来源', '时间'], nav: '变化与影响' },
-  { route: '/admin', title: '模型与接入管理', shot: '模型与接入管理', keywords: ['模型', '映射', '数据源', '导入', '对账', '同步'], nav: '模型与接入管理' },
+  { route: '/explorer', title: '查对象', shot: '对象探索器', keywords: ['对象', '类别', '列表', '学生', '教师'], nav: '查对象' },
+  { route: '/relations', title: '查关系（列表 + 图）', shot: '关系探索', keywords: ['关系', '图', '查看'], nav: '查关系' },
+  { route: '/changes', title: '看变化', shot: '变化与影响', keywords: ['变化', '关联', '来源', '时间'], nav: '看变化' },
+  { route: '/admin', title: '配置中心', shot: '模型与接入管理', keywords: ['对象类别', '关系类别', '数据源', '读取', '同步'], nav: '配置中心' },
 ]
 
 async function checkFivePages(page, ctx, label, R, withShots = true) {
@@ -361,7 +438,7 @@ async function checkFivePages(page, ctx, label, R, withShots = true) {
       '未检出 svg 或关系图文案，无法定位图交互元素；需主理人确认前端关系图选择器')
   } else {
     R.check(`${label}·关系图具备展开层数/节点上限控件（1 层 2 层）`,
-      /1 层|2 层|一层|两层|节点上限|层数|depth/i.test(relText),
+      /1 层|2 层|一层|两层|最多显示|看几层|层数|depth/i.test(relText),
       `文本片段=${relText.slice(0, 180)}`)
   }
 }
@@ -398,7 +475,7 @@ async function casePagesMobile(ctx) {
   watchConsole(m, 'mobile')
   try {
     await checkFivePages(m, ctx, '手机', R, true)
-    const navOk = await nav(m, '对象探索器')
+    const navOk = await nav(m, '查对象')
     R.check('手机端导航可见可点', navOk || (await m.locator('.nav-item, nav a, aside a').count()) >= 4,
       `nav 命中=${navOk}`)
     const input = await firstVisibleInput(m)
@@ -769,10 +846,10 @@ async function caseSourceFreshness(ctx) {
     await goto(page, '/', '16-来源状态与新鲜度-桌面.png')
     const t = await bodyText(page)
     R.check('顶栏/页面显示最后成功同步时间与数据新鲜度',
-      /最后成功同步|已同步|新鲜度|同步时间/.test(t), t.slice(0, 220))
+      /上次同步成功|最后成功同步|已同步|同步/.test(t), t.slice(0, 220))
     R.check('两类时间分开显示（演示时间 vs 最后成功同步时间）',
-      /演示时间/.test(t) && /最后成功同步|同步时间/.test(t),
-      `演示时间=${/演示时间/.test(t)} 同步时间=${/最后成功同步|同步时间/.test(t)}`)
+      /演示时间/.test(t) && /上次同步成功|最后成功同步|同步/.test(t),
+      `演示时间=${/演示时间/.test(t)} 同步时间=${/上次同步成功|最后成功同步|同步/.test(t)}`)
     if (st && st.sourceUp === false) {
       R.check('原业务停机时显示「来源不可用」且仍可查已同步对象',
         /来源不可用|不可用/.test(t) && /对象|学生|教师/.test(t), t.slice(0, 220))
@@ -853,16 +930,16 @@ async function caseDisplayRegression(ctx) {
     await goto(page, '/relations', '19-关系页空态引导-桌面.png')
     await page.waitForTimeout(1200)
     const emptyText = await bodyText(page)
-    R.check('关系页未选对象时显示引导文案（请先选择中心对象）',
-      emptyText.includes('请先选择中心对象'),
+    R.check('关系页未选对象时显示引导文案（请先选一个起点对象）',
+      emptyText.includes('请先选一个起点对象'),
       `文本片段=${emptyText.slice(0, 200)}`)
     R.check('关系页未选对象时不再显示空表格「暂无关系数据」',
       !emptyText.includes('暂无关系数据'),
       `命中「暂无关系数据」=${emptyText.includes('暂无关系数据')}`)
     const hasSelect = await page.locator('select').count().catch(() => 0)
     R.check('关系页空态提供对象选择器（类型下拉 + 关键字 + 快捷示例）',
-      /全部类型|快捷示例/.test(emptyText) && hasSelect > 0,
-      `全部类型=${emptyText.includes('全部类型')} / 快捷示例=${emptyText.includes('快捷示例')} / select=${hasSelect}`)
+      /全部类别|快捷示例/.test(emptyText) && hasSelect > 0,
+      `全部类别=${emptyText.includes('全部类别')} / 快捷示例=${emptyText.includes('快捷示例')} / select=${hasSelect}`)
 
     // ── 快捷示例按钮可直接进入关系列表 + 图 ─────────────────────────────
     const exampleBtn = page.getByRole('button', { name: /学生|课次|班级/ }).first()
@@ -876,8 +953,8 @@ async function caseDisplayRegression(ctx) {
         /关系总数/.test(loadedText) && (svgCount > 0 || /关系图/.test(loadedText)),
         `关系总数=${/关系总数/.test(loadedText)} / svg=${svgCount} / URL=${page.url()}`)
       R.check('选中对象后不出现空态引导卡片与「暂无关系数据」',
-        !loadedText.includes('请先选择中心对象') && !loadedText.includes('暂无关系数据'),
-        `引导=${loadedText.includes('请先选择中心对象')} / 暂无=${loadedText.includes('暂无关系数据')}`)
+        !loadedText.includes('请先选一个起点对象') && !loadedText.includes('暂无关系数据'),
+        `引导=${loadedText.includes('请先选一个起点对象')} / 暂无=${loadedText.includes('暂无关系数据')}`)
       await page.screenshot({ path: path.join(SHOTS, '20-关系页示例进入-桌面.png'), fullPage: true }).catch(() => {})
     } else {
       R.skip('点击快捷示例进入关系列表与图', '快捷示例按钮未渲染（示例对象可能不存在），需确认演示数据')
@@ -903,14 +980,14 @@ async function caseExplorerSinglePageNoPager(ctx) {
     const total = await explorerTotal(page)
     const rows = await desktopRowCount(page)
     const text = await bodyText(page)
-    R.check('学校类型（2 条）保留「共 2 条」计数文本',
-      total === 2 && /共\s*2\s*条/.test(text), `徽标=${total} / 表格行数=${rows}`)
+    R.check('学校类型（2 条）保留「找到 2 条」计数文本',
+      total === 2 && /(?:共|找到)\s*2\s*条/.test(text), `徽标=${total} / 表格行数=${rows}`)
     R.check('学校类型表格渲染 2 行（结构：table.desktop-only tbody tr）',
       rows === 2, `行数=${rows} / 徽标=${total}`)
     // 分页区的真实结构：计数 span 的父容器里不应有任何 <button>
     const pager = await page.evaluate(() => {
       const span = Array.from(document.querySelectorAll('span'))
-        .find(s => /共\s*\d+\s*条\s*\/\s*第\s*\d+\s*页/.test(s.textContent || ''))
+        .find(s => /(?:共|找到)\s*\d+\s*条\s*\/\s*第\s*\d+\s*页/.test(s.textContent || ''))
       if (!span) return null
       const box = span.parentElement
       return {
@@ -918,8 +995,8 @@ async function caseExplorerSinglePageNoPager(ctx) {
         buttons: Array.from(box.querySelectorAll('button')).map(b => (b.textContent || '').trim()),
       }
     })
-    R.check('分页区显示「共 2 条 / 第 1 页 / 共 1 页」',
-      !!pager && /共\s*1\s*页/.test(pager.text), pager ? pager.text : '未找到分页计数容器（结构可能已变）')
+    R.check('分页区显示「找到 2 条 / 第 1 页 / 一共 1 页」',
+      !!pager && /一共\s*1\s*页/.test(pager.text), pager ? pager.text : '未找到分页计数容器（结构可能已变）')
     const pagerButtons = pager ? pager.buttons : ['<分页区未定位>']
     R.check('只有一页时「首页/上一页/下一页/末页」四个按钮都不渲染（DOM 按钮数=0）',
       pagerButtons.length === 0, `分页区按钮=${JSON.stringify(pagerButtons)}`)
@@ -946,17 +1023,17 @@ async function caseExplorerFilterAliasWorks(ctx) {
     await waitExplorerTotal(page, 32)
     const baseTotal = await explorerTotal(page)
 
-    const input = page.locator('.toolbar input[placeholder="筛选 性别"]').first()
+    const input = page.locator('.toolbar input[placeholder*="性别"]').first()
     const hasInput = await input.count().catch(() => 0)
     R.check('学生类型提供「性别」筛选框（标签用中文 displayName）',
-      hasInput > 0, `「筛选 性别」输入框数量=${hasInput}；页面文本含「性别」=${(await bodyText(page)).includes('性别')}`)
+      hasInput > 0, `性别输入框数量=${hasInput}；页面文本含「性别」=${(await bodyText(page)).includes('性别')}`)
 
     let filtered = -1
     let rows = 0
     let notice = ''
     if (hasInput > 0) {
       await input.fill('男')
-      await page.getByRole('button', { name: '应用筛选', exact: true }).first().click().catch(() => {})
+      await page.locator('.toolbar button.primary').filter({ hasText: '查找' }).first().click().catch(() => {})
       // 等徽标到位而不是固定 sleep：徽标与表格是同一份 data 渲染，等它就是等数据
       await waitExplorerTotal(page, 16)
       filtered = await explorerTotal(page)
@@ -968,8 +1045,8 @@ async function caseExplorerFilterAliasWorks(ctx) {
       filtered === 16 && filtered < baseTotal, `筛选前=${baseTotal} / 筛选后=${filtered}`)
     R.check('筛选后「共 N 条」与表格行数一致（16=16）',
       filtered === rows && filtered === 16, `徽标=${filtered} / 行数=${rows}`)
-    R.check('筛选后给出结果说明文案（已按当前条件筛选 + 共 16 条）',
-      /已按当前条件筛选/.test(notice) && /共\s*16\s*条/.test(notice),
+    R.check('筛选后给出结果说明文案（已经按你填的条件查找 + 16 条）',
+      /已经按你填的条件查找/.test(notice) && /16\s*条/.test(notice),
       `说明块=${notice || '（未渲染 p.basis）'}`)
     // 契约 03 §2.6 首选写法：filters=<JSON>；平铺写法被服务端丢弃正是本轮真根因
     const filteredReq = [...objReqs].reverse().find(u => u.includes('filters=')) || ''
@@ -980,15 +1057,15 @@ async function caseExplorerFilterAliasWorks(ctx) {
     let clearedRows = 0
     let clearedNotice = ''
     if (hasInput > 0) {
-      await page.getByRole('button', { name: '清空', exact: true }).first().click().catch(() => {})
+      await page.getByRole('button', { name: '清除搜索条件', exact: true }).first().click().catch(() => {})
       await waitExplorerTotal(page, 32)
       cleared = await explorerTotal(page)
       clearedRows = await desktopRowCount(page)
       clearedNotice = await blockText(page, 'p.basis')
     }
     R.check('点「清空」后回到全量 32 条', cleared === 32, `清空后徽标=${cleared}（筛选前=${baseTotal}）`)
-    R.check('清空后本页显示 20 行且版式说明「条件已清空、共 32 条」',
-      clearedRows === 20 && /条件已清空/.test(clearedNotice) && /共\s*32\s*条/.test(clearedNotice),
+    R.check('清空后本页显示 20 行且版式说明「已经清除搜索条件、32 条」',
+      clearedRows === 20 && /已经清除搜索条件/.test(clearedNotice) && /32\s*条/.test(clearedNotice),
       `行数=${clearedRows} / 说明块=${clearedNotice || '（未渲染 p.basis）'}`)
   } finally { await page.close() }
 }
@@ -1072,7 +1149,7 @@ async function caseRelationsDefaultPicker(ctx) {
     R.check('直接打开 /#/relations 就有可点的对象列表（≥8 行）',
       rows >= 8, `对象列表行数=${rows} / 首行=${(await page.locator('.list-plain li').first().innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 80)}`)
     R.check('起始列表给出标题与范围说明（从下列对象开始探索 / 当前范围）',
-      /从下列对象开始探索/.test(text) && /当前范围/.test(text), snip(text, /从下列对象开始探索/))
+      /从下列对象开始探索/.test(text) && /当前显示/.test(text), snip(text, /从下列对象开始探索/))
 
     let relRows = 0
     let circles = 0
@@ -1121,7 +1198,7 @@ async function caseRelationsEmptyGidHint(ctx) {
     ).catch(() => {})
     const baseline = relReqs.length
 
-    const input = page.locator('input[placeholder*="gid:school-panorama"]').first()
+    const input = page.locator('.card .toolbar input[placeholder*="姓名或编号"]').last()
     const hasInput = await input.count().catch(() => 0)
     let after = baseline
     let errText = ''
@@ -1129,23 +1206,23 @@ async function caseRelationsEmptyGidHint(ctx) {
     let focused = false
     if (hasInput > 0) {
       await input.fill('')
-      await page.getByRole('button', { name: '展开关系', exact: true }).first().click().catch(() => {})
+      await page.getByRole('button', { name: '查看关系', exact: true }).first().click().catch(() => {})
       await page.waitForTimeout(700)
       after = relReqs.length
       errText = await blockText(page, '.error-banner')
       banner = await page.locator('.error-banner').count().catch(() => 0)
       focused = await page.evaluate(() => {
         const el = document.activeElement
-        return !!el && el.tagName === 'INPUT' && /gid:school-panorama/.test(el.getAttribute('placeholder') || '')
+        return !!el && el.tagName === 'INPUT' && /姓名或编号/.test(el.getAttribute('placeholder') || '')
       }).catch(() => false)
     }
     R.check('正常路径（带 globalId）确实请求了 /relations（计数器有效性基线 > 0）',
       baseline > 0, `基线请求数=${baseline}`)
-    R.check('globalId 为空时点「展开关系」给出「请先输入 globalId」提示',
-      /请先输入\s*globalId/.test(errText), `提示文本=${errText || '（未渲染 .error-banner）'}`)
-    R.check('globalId 为空时点「展开关系」不发 /relations 请求',
+    R.check('对象编号为空时点「查看关系」给出选择提示',
+      /请先从下面选一个对象/.test(errText), `提示文本=${errText || '（未渲染 .error-banner）'}`)
+    R.check('对象编号为空时点「查看关系」不发 /relations 请求',
       after === baseline, `点击前=${baseline} / 点击后=${after}`)
-    R.check('提示以错误条渲染（.error-banner）且焦点回到 globalId 输入框',
+    R.check('提示以错误条渲染（.error-banner）且焦点回到对象编号输入框',
       banner > 0 && focused, `.error-banner 数量=${banner} / 焦点在输入框=${focused}`)
   } finally { await page.close() }
 }
@@ -1186,7 +1263,7 @@ async function caseExplorerUrlChangeRefresh(ctx) {
     const fired = objReqs.length - base
 
     R.check('同一标签页把 URL 换成 ?type=class 后标题跟随（当前类型：班级）',
-      /当前类型：\s*班级/.test(sub), `导航=${navOk} / URL=${page.url()} / 副标题=${sub || '（未渲染 .page-head .sub）'}`)
+      /当前查看：\s*班级/.test(sub), `导航=${navOk} / URL=${page.url()} / 副标题=${sub || '（未渲染 .page-head .sub）'}`)
     R.check('表格数据跟随刷新（班级 4 行，不是学生 20 行）',
       rows === 4, `行数=${rows} / 换 URL 前徽标=${beforeTotal} 后=${afterTotal}`)
     R.check('「共 N 条」与表格行数三者一致（标题/表格/条数=4）',
@@ -1194,6 +1271,131 @@ async function caseExplorerUrlChangeRefresh(ctx) {
     R.check('一次 URL 变化只补发 1 次 /objects 请求（去重生效）',
       fired === 1, `本次 /objects 请求数=${fired} / 最近 URL=${JSON.stringify(objReqs.slice(-3))}`)
   } finally { await page.close() }
+}
+
+/**
+ * 26-对象类型在线编辑闭环（C 档）。
+ *
+ * 步骤全部走真实 UI 与接口：编辑学生 displayName → 保存草稿 → 应用（自重启）→
+ * 等服务恢复 → 探索器按钮显示新名 → 恢复对象基线 → 再应用 → 回到「学生」。
+ * 每步都轮询 /api/ontology/overview 直到 200，最长 120 秒。
+ */
+async function caseObjectTypeOnlineEdit(ctx) {
+  const R = forCase('object_type_online_edit', '在线编辑')
+  const page = await ctx.desktop.newPage()
+  watchConsole(page, '26-对象在线编辑')
+  try {
+    // 26-1 前置：确保从打包基线开始，且 95 个对象完整。
+    let versions = await ontoGet('/model/versions')
+    let student = await currentStudentDefinition()
+    if (!versions || !student || versions.draft?.exists || student.displayName !== '学生') {
+      await restoreObjectBaseline()
+      versions = await ontoGet('/model/versions')
+      student = await currentStudentDefinition()
+      const ready = await waitOntologyReady(versions?.baselineMappingVersion)
+      R.check('26-1 前置：已回到打包基线且服务恢复 200', ready.ok,
+        `overview=${ready.status} / active=${ready.version}`)
+    }
+    const overviewBefore = await ontoGet('/overview')
+    R.check('26-1 前置：学生类型显示名为「学生」且 95 个对象在', student?.displayName === '学生'
+      && overviewBefore?.counts?.objects === 95,
+    `displayName=${student?.displayName} / objects=${overviewBefore?.counts?.objects}`)
+    const baseVersion = versions.activeMappingVersion
+
+    // 26-2 管理页 UI 编辑学生 displayName 并保存草稿。
+    await goto(page, '/admin', '26-管理页-编辑前.png')
+    await page.locator('[data-testid="edit-object-student"]').waitFor({ timeout: 15000 })
+    await page.locator('[data-testid="edit-object-student"]').click()
+    const dialog = page.locator('.modal-mask .modal').filter({ hasText: '编辑对象类别' })
+    const displayInput = dialog.locator('.field')
+      .filter({ hasText: '显示名称（按钮和菜单上给用户看的名字）' })
+      .locator('input[type="text"]')
+    await displayInput.fill('学生（测试）')
+    await page.screenshot({ path: path.join(SHOTS, '26-学生编辑弹窗.png'), fullPage: true }).catch(() => {})
+    await dialog.locator('button.primary').click()
+    // 保存是异步请求：轮询到草稿真的出现再断言，别读点击前的快照。
+    let saved = false
+    for (let i = 0; i < 30; i++) {
+      const v = await ontoGet('/model/versions')
+      if (v?.draft?.objectTypesFromDraft === true) { saved = true; break }
+      await new Promise(resolve => setTimeout(resolve, 400))
+    }
+    R.check('26-2 界面出现保存成功提示', /已保存草稿/.test((await bodyText(page))), '提示未出现')
+
+    const draftVersions = await ontoGet('/model/versions')
+    const draftStudent = await currentStudentDefinition()
+    R.check('26-2 保存后产生对象草稿且版本变化', draftVersions?.draft?.objectTypesFromDraft === true
+      && draftVersions.draft.draftMappingVersion !== baseVersion,
+    `fromDraft=${draftVersions?.draft?.objectTypesFromDraft} / draft=${draftVersions?.draft?.draftMappingVersion}`)
+    R.check('26-2 草稿中 displayName 已改为「学生（测试）」', draftStudent?.displayName === '学生（测试）',
+      `displayName=${draftStudent?.displayName}`)
+
+    // 26-3 点顶部「应用到运行时」，等自重启完成。
+    const target = draftVersions.draft.draftMappingVersion
+    // 自重启窗口内浏览器必然收到 502：这是预期中断，不计入 JS 运行错误。
+    suppressConsoleErrors = true
+    await page.locator('button.primary').filter({ hasText: '让改动生效' }).first().click()
+    const restored = await waitOntologyReady(target)
+    suppressConsoleErrors = false
+    R.check('26-3 应用后服务重启恢复且目标版本生效（≤120s）', restored.ok,
+      `overview=${restored.status} / active=${restored.version} / target=${target}`)
+    const typesAfter = await ontoGet('/model/types')
+    const studentAfter = (typesAfter?.types ?? []).find(row => row.id === 'student')
+    R.check('26-3 /model/types 返回新展示名', studentAfter?.displayName === '学生（测试）',
+      `displayName=${studentAfter?.displayName}`)
+
+    // 26-4 探索器按钮显示新名，数据仍完整。
+    await goto(page, '/explorer?type=student', '26-探索器-新名.png')
+    // hash 路由跳转不会重新挂载 App；强制刷新一次，确保模型定义确实来自重启后的服务。
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await waitExplorerTotal(page, 32)
+    const explorerText = await bodyText(page)
+    const overviewAfter = await ontoGet('/overview')
+    R.check('26-4 探索器类型按钮显示「学生（测试）」且学生 32 条', explorerText.includes('学生（测试）')
+      && (await explorerTotal(page)) === 32, `文本命中=${explorerText.includes('学生（测试）')}`)
+    R.check('26-4 应用后 95 个对象仍完整', overviewAfter?.counts?.objects === 95,
+      `objects=${overviewAfter?.counts?.objects}`)
+
+    // 26-5 恢复对象基线：只删对象 overlay，再应用到运行时。
+    await goto(page, '/admin', '26-管理页-待恢复.png')
+    await page.getByRole('button', { name: /撤销对象类别的在线修改/ }).click()
+    await page.getByRole('button', { name: /确认恢复对象基线/ }).click()
+    // 确认按钮是异步请求：轮询到草稿真的消失再断言，避免读到点击前的快照。
+    let resetVersions = null
+    for (let i = 0; i < 30; i++) {
+      resetVersions = await ontoGet('/model/versions')
+      if (resetVersions?.draft?.objectTypesFromDraft === false
+        && Boolean(resetVersions?.draft?.pendingTargetVersion)) break
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+    R.check('26-5 恢复基线后无对象草稿且待生效目标为基线', resetVersions?.draft?.objectTypesFromDraft === false
+      && Boolean(resetVersions?.draft?.pendingTargetVersion),
+    `fromDraft=${resetVersions?.draft?.objectTypesFromDraft} / target=${resetVersions?.draft?.pendingTargetVersion}`)
+
+    const baseAfterReset = resetVersions.activeMappingVersion
+    suppressConsoleErrors = true
+    await page.locator('button.primary').filter({ hasText: '让改动生效' }).first().click()
+    const restoredBase = await waitOntologyReady(resetVersions.draft.pendingTargetVersion)
+    suppressConsoleErrors = false
+    R.check('26-5 再次应用后服务恢复且回到基线版本（≤120s）', restoredBase.ok
+      && restoredBase.version === resetVersions.baselineMappingVersion,
+    `overview=${restoredBase.status} / active=${restoredBase.version} / baseline=${resetVersions.baselineMappingVersion}`)
+    const finalTypes = await ontoGet('/model/types')
+    const finalStudent = (finalTypes?.types ?? []).find(row => row.id === 'student')
+    const finalObjects = await waitObjectCount(95)
+    R.check('26-6 展示名恢复「学生」且 95 个对象在', finalStudent?.displayName === '学生'
+      && finalObjects.ok,
+    `displayName=${finalStudent?.displayName} / objects=${finalObjects.count} / base=${baseAfterReset}`)
+  } finally {
+    suppressConsoleErrors = false
+    // 兜底：无论断言结果如何，都不把「学生（测试）」留在演示环境。
+    const cleaned = await restoreObjectBaseline()
+    const after = await currentStudentDefinition()
+    R.check('26-7 收尾：演示环境对象定义已恢复基线', cleaned.skipped === true || cleaned.ok === true,
+      `cleanup=${JSON.stringify(cleaned)} / displayName=${after?.displayName}`)
+    await page.screenshot({ path: path.join(SHOTS, '26-收尾-基线.png'), fullPage: true }).catch(() => {})
+    await page.close()
+  }
 }
 
 const HANDLERS = {
@@ -1212,6 +1414,7 @@ const HANDLERS = {
   relations_default_picker: caseRelationsDefaultPicker,
   relations_empty_gid_hint: caseRelationsEmptyGidHint,
   explorer_url_change_refresh: caseExplorerUrlChangeRefresh,
+  object_type_online_edit: caseObjectTypeOnlineEdit,
 }
 
 function parseArgs() {

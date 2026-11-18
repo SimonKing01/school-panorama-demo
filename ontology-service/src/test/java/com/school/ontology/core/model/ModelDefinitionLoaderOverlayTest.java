@@ -105,6 +105,82 @@ class ModelDefinitionLoaderOverlayTest {
     }
 
     @Test
+    void 对象overlay合法时优先生效且hash覆盖对象文本() {
+        ModelDefinitionLoader baseline = new ModelDefinitionLoader();
+        String edited = baseline.objectText()
+                .replace("    displayName: 学生\n", "    displayName: 学生（在线）\n");
+        assertNotEquals(baseline.objectText(), edited, "测试前提：基线对象文本可被替换");
+        DefinitionFileStore relationStore = new DefinitionFileStore(directory, DefinitionFileStore.OVERLAY_FILE);
+        DefinitionFileStore objectStore = new DefinitionFileStore(directory, DefinitionFileStore.OBJECT_OVERLAY_FILE);
+        objectStore.writeOverlay(edited);
+
+        ModelDefinitionLoader loader = new ModelDefinitionLoader(relationStore, objectStore);
+
+        assertEquals("OVERLAY", loader.definitionSource());
+        assertEquals("OVERLAY", loader.objectDefinitionSource());
+        assertEquals("BASELINE", loader.relationDefinitionSource());
+        assertEquals("学生（在线）", loader.registry().typeOf("student").displayName,
+                "对象 overlay 必须真正驱动 ModelRegistry");
+        assertNotEquals(baseline.definitionHash(), loader.definitionHash(),
+                "definitionHash 必须覆盖实际生效的对象定义文本");
+        assertNotEquals(baseline.mappingVersion().mappingVersion, loader.mappingVersion().mappingVersion);
+        assertEquals(baseline.mappingVersion().mappingVersion,
+                loader.baselineMappingVersion().mappingVersion, "基线版本不受 overlay 影响");
+        assertEquals(7, loader.registry().types().size(), "overlay 是整份替换，对象类型条数不变");
+    }
+
+    @Test
+    void 对象overlay非法时回退基线且不影响关系overlay() throws Exception {
+        ModelDefinitionLoader baseline = new ModelDefinitionLoader();
+        DefinitionFileStore relationStore = new DefinitionFileStore(directory, DefinitionFileStore.OVERLAY_FILE);
+        DefinitionFileStore objectStore = new DefinitionFileStore(directory, DefinitionFileStore.OBJECT_OVERLAY_FILE);
+        String editedRelation = baseline.effectiveRelationText()
+                .replace("displayName: 授课安排-授课教师", "displayName: 授课教师（在线）");
+        relationStore.writeOverlay(editedRelation);
+        // 缺 identity / attributes / titleTemplate：解析能过，集成校验必挂。
+        objectStore.writeOverlay("version: 1\nobjectTypes:\n  - id: broken_object\n    displayName: 坏对象\n");
+
+        ModelDefinitionLoader loader = new ModelDefinitionLoader(relationStore, objectStore);
+
+        assertEquals("OVERLAY_FALLBACK", loader.definitionSource());
+        assertEquals("学生", loader.registry().typeOf("student").displayName, "坏对象定义必须回退基线");
+        assertEquals("授课教师（在线）", loader.registry().relationOf("session_taught_by").displayName,
+                "对象 overlay 回退不能牵连合法的关系 overlay");
+        assertFalse(objectStore.overlayExists(), "坏对象 overlay 必须被隔离");
+        assertTrue(relationStore.overlayExists(), "合法关系 overlay 必须保留");
+        assertTrue(objectStore.lastFallback().occurred());
+        assertTrue(objectStore.lastFallback().reason().contains("属性"),
+                "回退原因应带具体校验错误，实际：" + objectStore.lastFallback().reason());
+        assertEquals(DefinitionFileStore.OBJECT_OVERLAY_FILE, objectStore.lastFallback().fileName());
+        try (Stream<Path> files = Files.list(directory)) {
+            assertTrue(files.anyMatch(p -> p.getFileName().toString()
+                    .startsWith(DefinitionFileStore.OBJECT_OVERLAY_FILE + ".invalid.")), "必须留下隔离证据");
+        }
+    }
+
+    @Test
+    void 两份overlay同时存在时hash覆盖两份文本() {
+        ModelDefinitionLoader baseline = new ModelDefinitionLoader();
+        DefinitionFileStore relationStore = new DefinitionFileStore(directory, DefinitionFileStore.OVERLAY_FILE);
+        DefinitionFileStore objectStore = new DefinitionFileStore(directory, DefinitionFileStore.OBJECT_OVERLAY_FILE);
+        String editedRelation = baseline.effectiveRelationText()
+                .replace("displayName: 授课安排-授课教师", "displayName: 授课教师（在线）");
+        String editedObject = baseline.objectText()
+                .replace("    displayName: 学生\n", "    displayName: 学生（在线）\n");
+        relationStore.writeOverlay(editedRelation);
+        objectStore.writeOverlay(editedObject);
+
+        ModelDefinitionLoader loader = new ModelDefinitionLoader(relationStore, objectStore);
+
+        assertEquals("OVERLAY", loader.definitionSource());
+        assertEquals("学生（在线）", loader.registry().typeOf("student").displayName);
+        assertEquals("授课教师（在线）", loader.registry().relationOf("session_taught_by").displayName);
+        assertEquals("sha256:" + com.school.ontology.common.Resp.sha256(
+                        editedObject + "\n" + editedRelation + "\n" + loader.sourceText()),
+                "sha256:" + loader.definitionHash(), "hash 必须同时覆盖两份 overlay 文本");
+    }
+
+    @Test
     void 打包基线自身非法时仍然拒绝启动() {
         // 基线非法必须抛 IllegalStateException（B1 口径不变）：这里直接对基线文本做负例校验，
         // 避免为了造一个坏 classpath 文件而污染共享测试资源。

@@ -39,14 +39,18 @@ public class ObjectTypeDef {
     /** 属性名 + 派生属性名，用于校验 listFields/searchableFields 是否合法。 */
     public Set<String> knownFieldNames() {
         Set<String> names = new LinkedHashSet<>();
-        for (AttributeDef def : attributes) {
-            if (def != null && def.name != null) {
-                names.add(def.name);
+        if (attributes != null) {
+            for (AttributeDef def : attributes) {
+                if (def != null && def.name != null) {
+                    names.add(def.name);
+                }
             }
         }
-        for (DerivedPropertyDef def : derivedProperties) {
-            if (def != null && def.name != null) {
-                names.add(def.name);
+        if (derivedProperties != null) {
+            for (DerivedPropertyDef def : derivedProperties) {
+                if (def != null && def.name != null) {
+                    names.add(def.name);
+                }
             }
         }
         return names;

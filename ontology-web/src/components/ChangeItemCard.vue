@@ -4,6 +4,15 @@ import { fmt, type ChangeItem, type DiffEntry } from '../types'
 
 const props = defineProps<{ item: ChangeItem }>()
 
+// 变化类型显示中文，数据里仍是英文标识。
+function kindLabel(kind: string): string {
+  const map: Record<string, string> = {
+    ADJUST: '调课', CREATE: '新增', UPDATE: '修改', DELETE: '删除',
+    RECONCILE: '系统自动修复', REBUILD: '重新生成', EVENT: '业务操作',
+  }
+  return map[kind] || kind
+}
+
 function roleLabel(role: string): string {
   const map: Record<string, string> = {
     SELF_CHANGED: '本身发生变化',
@@ -119,34 +128,34 @@ const onlyNoopDiff = computed(
 <template>
   <div class="card" style="margin-bottom:10px">
     <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center">
-      <b>#{{ item.changeId }} · {{ item.changeKind }}</b>
+      <b>第 {{ item.changeId }} 条变化 · {{ kindLabel(item.changeKind) }}</b>
       <span :class="'badge ' + (item.origin === 'EVENT' ? 'info' : 'warn')">{{ originLabel(item.origin) }}</span>
-      <span class="hint">本身变化对象：{{ item.selfObject?.title || item.selfObject?.globalId || '—' }}</span>
+      <span class="hint">直接改动的对象：{{ item.selfObject?.title || item.selfObject?.globalId || '—' }}</span>
       <span v-if="distinctDiffObjects > 1" class="hint">（本记录涉及 {{ distinctDiffObjects }} 个对象）</span>
     </div>
 
     <div class="grid cols-2" style="margin-top:10px">
       <div>
-        <div class="hint">演示业务时间（可回拨，业务事实）</div>
-        <div>{{ item.businessTime || '—（对账/重建不伪造发生时间）' }}</div>
+        <div class="hint">业务发生时间（演示用，可回拨）</div>
+        <div>{{ item.businessTime || '—（系统自动修复的记录没有发生时间）' }}</div>
       </div>
       <div>
-        <div class="hint">同步处理时间（真实单调，运维时钟）</div>
+        <div class="hint">平台实际处理时间</div>
         <div>{{ item.processedAt || '—' }}</div>
       </div>
     </div>
 
     <div style="margin-top:8px; font-size:13px">
       原因：{{ item.reason || '—' }} ·
-      操作人：{{ item.operator || '—（不伪造操作人）' }} ·
-      来源事件：{{ item.eventId || '—' }} ·
-      映射版本：{{ item.mappingVersion || '—' }}
+      操作人：{{ item.operator || '—（系统自动修复，没有操作人）' }} ·
+      来源记录：{{ item.eventId || '—' }} ·
+      数据批次：{{ item.mappingVersion || '—' }}
     </div>
 
     <div v-if="(item.diff ?? []).length" style="margin-top:10px">
-      <b>属性前后差异</b>
+      <b>改了哪些信息</b>
       <div v-if="onlyNoopDiff" class="hint" style="margin-top:4px">
-        （该记录仅有投影内部对齐，无实质业务属性变化）
+        （系统只是对齐了内部数据，没有真正改业务内容）
       </div>
       <ul v-else class="list-plain">
         <li v-for="(entry, index) in visibleDiff" :key="index">
@@ -167,20 +176,20 @@ const onlyNoopDiff = computed(
     </div>
 
     <div v-if="(item.relationsAdded ?? []).length" style="margin-top:8px">
-      <b>新建立关系</b>
+      <b>新增的关联</b>
       <div v-for="(rel, index) in item.relationsAdded ?? []" :key="'a' + index" class="hint">
         {{ fmtRelation(rel) }}
       </div>
     </div>
     <div v-if="(item.relationsRemoved ?? []).length" style="margin-top:8px">
-      <b>已结束关系</b>
+      <b>结束的关联</b>
       <div v-for="(rel, index) in item.relationsRemoved ?? []" :key="'r' + index" class="hint">
         {{ fmtRelation(rel) }}
       </div>
     </div>
 
     <div v-if="(item.impact ?? []).length" style="margin-top:10px">
-      <b>变化影响判定（邻接对象不被一律标为业务状态已改变）</b>
+      <b>受影响的对象（只列真正相关的）</b>
       <ul class="list-plain">
         <li v-for="(entry, index) in item.impact ?? []" :key="index">
           <span :class="'badge ' + roleClass(entry.role)">{{ roleLabel(entry.role) }}</span>

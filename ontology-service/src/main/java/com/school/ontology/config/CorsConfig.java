@@ -12,7 +12,8 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOriginPatterns("*")
-                .allowedMethods("GET", "POST", "OPTIONS")
+                // 对象 / 关系类型在线编辑走 PUT / DELETE；缺了会在浏览器预检阶段 403 Invalid CORS request。
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*");
         registry.addMapping("/internal/**")
                 .allowedOriginPatterns("*")

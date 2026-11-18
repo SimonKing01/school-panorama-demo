@@ -13,7 +13,7 @@ function go(page: number): void {
 
 <template>
   <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; font-size:13px">
-    <span>共 {{ total }} 条 / 第 {{ page }} 页 / 共 {{ pages }} 页</span>
+    <span>找到 {{ total }} 条 / 第 {{ page }} 页 / 一共 {{ pages }} 页</span>
     <span class="spacer"></span>
     <!--
       只有一页时不渲染导航按钮（缺陷 1）：这 4 个按钮会全部 disabled，

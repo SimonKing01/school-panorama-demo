@@ -106,30 +106,29 @@ function labelOf(node: { title: string; type: string }): NodeLabel {
       </g>
     </svg>
     <div class="hint" style="margin-top:6px">
-      点击任意边查看成因。实线=有效关系，虚线=已结束的旧关系；节点 {{ (graph.nodes ?? []).length }} 个，
-      {{ graph.truncated ? '已达节点上限（可分页）' : '未超限' }}。
+      点一条连线看为什么有关系。实线＝现在有效，虚线＝已经结束；图中 {{ (graph.nodes ?? []).length }} 个对象，{{ graph.truncated ? '已达到显示上限，可翻页看更多' : '' }}。
     </div>
 
     <div v-if="selected" class="modal-mask" @click.self="selected = null">
       <div class="modal">
-        <h3>关系成因 · {{ selected.label }}</h3>
+        <h3>为什么有这条关系 · {{ selected.label }}</h3>
         <div class="kv">
-          <div class="k">关系类型</div><div class="v">{{ selected.relationType }}</div>
+          <div class="k">关系名称</div><div class="v">{{ selected.label }}</div>
           <div class="k">两端对象</div><div class="v">{{ selected.from }} → {{ selected.to }}</div>
           <div class="k">存在原因</div><div class="v">{{ selected.reason }}</div>
-          <div class="k">状态依据</div><div class="v">{{ selected.basis }}</div>
-          <div class="k">当前状态</div><div class="v">{{ selected.active ? '有效（新关系建立）' : '已结束（旧关系）' }}</div>
+          <div class="k">判断依据</div><div class="v">{{ selected.basis }}</div>
+          <div class="k">当前状态</div><div class="v">{{ selected.active ? '目前有效' : '已经结束' }}</div>
           <template v-if="detail">
-            <div class="k">来源表 / 主键</div>
+            <div class="k">数据来自哪里</div>
             <div class="v">{{ detail.source?.sourceTable || '—' }} / {{ detail.source?.sourcePk || '—' }}</div>
-            <div class="k">来源指纹</div><div class="v">{{ detail.source?.sourceHash || '—' }}</div>
-            <div class="k">映射版本</div><div class="v">{{ detail.mappingVersion || '—' }}</div>
-            <div class="k">业务有效起</div><div class="v">{{ detail.validFrom || '—（长期有效）' }}</div>
-            <div class="k">业务有效止</div><div class="v">{{ detail.validTo || '—' }}</div>
-            <div class="k">生成规则</div><div class="v">{{ detail.generationKind || '—' }}</div>
+            <div class="k">来源记录校验码</div><div class="v" style="font-size:11px;color:#888">{{ detail.source?.sourceHash || '—' }}</div>
+            <div class="k">数据批次</div><div class="v">{{ detail.mappingVersion || '—' }}</div>
+            <div class="k">开始日期</div><div class="v">{{ detail.validFrom || '—（长期有效）' }}</div>
+            <div class="k">结束日期</div><div class="v">{{ detail.validTo || '—' }}</div>
+            <div class="k">关系来源</div><div class="v">{{ detail.generationKind === 'JOIN_RULE' ? '按规则推算' : detail.generationKind === 'FOREIGN_KEY' ? '来源表外键' : (detail.generationKind || '—') }}</div>
           </template>
         </div>
-        <p class="hint">关系存在原因说明来自哪个字段、关联查询或计算规则；老师替换后可见旧关系结束与新关系建立。</p>
+        <p class="hint">这里说明为什么两者有关系；调课后可以看到旧关系结束、新关系建立。</p>
         <button @click="selected = null">关闭</button>
       </div>
     </div>
